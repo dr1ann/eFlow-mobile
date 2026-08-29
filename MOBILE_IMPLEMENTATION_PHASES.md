@@ -2,11 +2,12 @@
 
 ## Roadmap status
 
-- Status: Proposed
+- Status: In progress
 - Mobile stack: Expo, React Native, and TypeScript
 - Web upstream: [Rivaly-Kun/eFlow-e-Governance-Project](https://github.com/Rivaly-Kun/eFlow-e-Governance-Project)
-- Web audit baseline: [`0ecffafffc1fc06b5c12b66014301e78aa659cde`](https://github.com/Rivaly-Kun/eFlow-e-Governance-Project/commit/0ecffafffc1fc06b5c12b66014301e78aa659cde)
-- Baseline date: August 25, 2026
+- Web audit baseline: [`508aabc8881630b37a62a973645ecb0bb386e99e`](https://github.com/Rivaly-Kun/eFlow-e-Governance-Project/commit/508aabc8881630b37a62a973645ecb0bb386e99e)
+- Latest upstream `main` inspected: `7b072123a20876940be84217dbb6af3ad8d2700f`; this is not yet the adopted mobile baseline
+- Baseline date: August 27, 2026
 
 ## Scope principle
 
@@ -96,6 +97,19 @@ src/
 
 Deliver the most frequent mobile workflow: receiving work, performing it, attaching evidence, and sending it through review.
 
+### Active testing boundary — August 29, 2026
+
+Phase 1 is **not complete**, and its exit criteria below remain open. A safe partial slice is available for testing:
+
+- An authenticated user with `navigation.tasks` can open the Work tab, filter and refresh a paged task list, open task and subtask details, and follow validated UUID routes.
+- Task and subtask reads use the configured Supabase client and remain subject to deployed RLS. Empty or rejected detail reads do not reveal whether a record exists.
+- An assigned contributor can exercise the native document/image selection flow and see local file metadata. The local URI and file contents are not logged, uploaded, or persisted.
+- Start/resume, progress writes, evidence upload, submission, review decisions, notifications, announcements, comments, and Realtime workflow refresh remain disabled or unimplemented.
+
+There is deliberately no security bypass. The inspected schema still has the broad `taskfiles_rw` Storage policy, which authorizes task-bucket objects using only an authenticated-session check. Until the backend owner replaces it with task-scoped private-object policies and allowed/denied identity probes pass, the mobile app must not upload, download, delete, or submit evidence. The linked Supabase CLI migration list is also empty; this is an auditability problem, not proof that the deployed schema is missing, and the mobile repository must not repair or push that history blindly.
+
+See [`PHASE_1_BLOCKER_REPORT.md`](PHASE_1_BLOCKER_REPORT.md) for the backend handoff and the exact conditions for enabling the remaining workflow.
+
 ### Scope
 
 #### Authentication and account
@@ -114,11 +128,13 @@ Deliver the most frequent mobile workflow: receiving work, performing it, attach
 - Start eligible work.
 - Clear display of blocked dependencies and unauthorized actions.
 - Work I am Leading when the user is an actual task lead.
+- Resolve the effective Task Lead using the server contract: `assigned_to` takes precedence, with `recommendation_lead_id` used only when no assignee exists. A role label or unpersisted AI suggestion never grants authority.
 
 #### Subtasks and evidence
 
 - My Subtasks list.
 - Subtask detail and execution prerequisites.
+- Only the effective Task Lead may create, assign, reorder, reschedule, delete, or change execution rules for subtasks; assigned contributors retain progress and evidence actions.
 - Progress updates.
 - Evidence selection through the native document or image picker.
 - Upload to the existing private Supabase storage paths.
@@ -223,7 +239,8 @@ Add lower-frequency or technically complex features after the core mobile workfl
 
 - Department budget overview.
 - Task and subtask allocations.
-- Petty-cash requests.
+- Contextual task/subtask cash requests against a selected approved budget line, with optional Task Lead subtask caps.
+- Correction, resubmission, reviewer notification, release acknowledgement, and reservation-expiry states.
 - Receipt uploads and liquidation review.
 - Immutable ledger and funding-state visibility.
 

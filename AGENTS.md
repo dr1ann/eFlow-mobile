@@ -25,8 +25,8 @@ Prioritize real employee, Team Leader, and Department Head workflows. Keep compl
 
 - Mobile roadmap: `MOBILE_IMPLEMENTATION_PHASES.md`
 - Upstream web repository: <https://github.com/Rivaly-Kun/eFlow-e-Governance-Project>
-- Audited web baseline: `0ecffafffc1fc06b5c12b66014301e78aa659cde`
-- Baseline recorded: August 25, 2026
+- Audited web baseline: `508aabc8881630b37a62a973645ecb0bb386e99e`
+- Baseline recorded: August 27, 2026
 
 The baseline is an audit marker, not a dependency pin. Update it only after comparing the old and new upstream commits, evaluating mobile impact, implementing any required compatibility work, and verifying the mobile app.
 

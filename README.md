@@ -2,7 +2,7 @@
 
 Cross-platform eFlow client built with Expo, React Native, TypeScript, Supabase, and the authenticated eFlow control gateway.
 
-Phase 0 supplies the native shell, authentication, role and permission resolution, Supabase client, gateway health check, Realtime helpers, design tokens, and quality tooling. Tasks, evidence, reviews, notifications, and AI workflows begin in later phases.
+Phase 0 supplies the native shell, authentication, role and permission resolution, Supabase client, gateway health check, Realtime helpers, design tokens, and quality tooling. Phase 1 now includes a permission-gated, RLS-backed Work/task/subtask read path and local-only evidence picker preview. Evidence transfer and every workflow mutation remain disabled until task-scoped Storage security and live allowed/denied authorization are verified.
 
 ## What you need
 
@@ -41,6 +41,7 @@ Expo Go is sufficient for the current app. You do not need Android Studio, Xcode
    - An Auth user with an active `profiles` row and a supported role.
    - Role-permission records readable by that user.
    - For gateway testing, a reachable authenticated gateway URL in `system_config.ai_endpoint`.
+   - For the partial Phase 1 test slice, assigned task/subtask rows visible to the account under RLS and the `navigation.tasks` permission.
 
    Prepare additional accounts or profile states for inactive, missing, malformed, and unsupported-role access checks. Use a role that has the restricted navigation permission when testing the access-check route.
 
@@ -69,7 +70,7 @@ If the app shows a configuration error, recheck `.env` and restart `npm start`. 
 Expected first-run behavior:
 
 1. The sign-in screen appears when no session exists.
-2. A valid active account opens Home and Settings.
+2. A valid active account opens Home and Settings; an account with `navigation.tasks` also sees Work.
 3. The Home screen can run **Check gateway health** when the test gateway is configured.
 
 ## Phase 0 manual acceptance checklist
@@ -89,7 +90,18 @@ Perform these checks on Android and iOS before treating Phase 0 as manually acce
 - [ ] Sign-in fields and buttons have usable screen-reader labels, adequate touch targets, correct safe areas, and no keyboard overlap.
 - [ ] Light and dark mode layouts have no clipped text or inaccessible tab controls.
 
-The current app intentionally does not test Phase 1 task, evidence, submission, review, announcement, or notification workflows.
+## Safe Phase 1 test slice
+
+With an active non-production account that has `navigation.tasks` and assigned data:
+
+1. Open **Work**, change a filter, pull to refresh, and open a task.
+2. Open one of the task's subtasks.
+3. If the signed-in user is an assigned contributor and the subtask is editable, choose a document or image.
+4. Confirm that only local metadata is previewed. The file is not uploaded or submitted.
+
+Actual uploads, progress/status changes, submissions, reviews, notifications, announcements, comments, and Realtime workflow acceptance are intentionally unavailable. Do not make the evidence buckets public or add a client-side service key to test them; see [the Phase 1 blocker report](PHASE_1_BLOCKER_REPORT.md).
+
+If the picker reports that the native module is missing, update Expo Go on the device, stop the existing Metro process, and restart with `npx expo start --clear`. If the app is running in a previously built development client instead of Expo Go, rebuild and reinstall that client after adding `expo-document-picker` and `expo-image-picker`; restarting JavaScript alone cannot add native modules to an existing binary.
 
 ## Quality checks
 
@@ -109,7 +121,7 @@ npx expo install --check
 
 ## Database types
 
-The repository includes a bootstrap database contract for the audited Phase 0 tables. Replace it with generated types after obtaining the non-production project reference and authenticating the Supabase CLI:
+The repository now contains generated database types from the configured non-production project. Regenerate them after an approved schema change:
 
 ```powershell
 $env:SUPABASE_PROJECT_REF = "your-test-project-ref"
@@ -122,5 +134,7 @@ The project reference is not a secret. Do not place server-only credentials in `
 
 - [Mobile implementation phases](MOBILE_IMPLEMENTATION_PHASES.md)
 - [Phase 0 implementation plan](PHASE_0_IMPLEMENTATION_PLAN.md)
+- [Phase 1 implementation plan](PHASE_1_IMPLEMENTATION_PLAN.md)
+- [Phase 1 contract record](docs/PHASE_1_CONTRACTS.md)
 - [Audited web baseline and contract notes](docs/WEB_BASELINE.md)
 - [Feature parity matrix](docs/FEATURE_PARITY_MATRIX.md)

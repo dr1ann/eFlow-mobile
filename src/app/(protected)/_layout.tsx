@@ -12,6 +12,10 @@ export default function ProtectedLayout() {
       <Stack.Protected guard={canOpenPermissionRoute(state, "navigation.user_management")}>
         <Stack.Screen name="access-check" options={{ title: "Access check" }} />
       </Stack.Protected>
+      <Stack.Protected guard={canOpenPermissionRoute(state, "navigation.tasks")}>
+        <Stack.Screen name="tasks/[task-id]" options={{ title: "Task details" }} />
+        <Stack.Screen name="subtasks/[subtask-id]" options={{ title: "Subtask details" }} />
+      </Stack.Protected>
     </Stack>
   );
 }
