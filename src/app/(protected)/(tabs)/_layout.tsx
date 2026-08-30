@@ -17,6 +17,12 @@ export default function TabLayout() {
           <NativeTabs.Trigger.Label>Work</NativeTabs.Trigger.Label>
         </NativeTabs.Trigger>
       ) : null}
+      {can("navigation.projects") ? (
+        <NativeTabs.Trigger name="projects">
+          <NativeTabs.Trigger.Icon sf="folder.fill" md="folder" />
+          <NativeTabs.Trigger.Label>Projects</NativeTabs.Trigger.Label>
+        </NativeTabs.Trigger>
+      ) : null}
       <NativeTabs.Trigger name="settings">
         <NativeTabs.Trigger.Icon sf="gearshape.fill" md="settings" />
         <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>

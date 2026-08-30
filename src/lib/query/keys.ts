@@ -40,6 +40,8 @@ export const queryKeys = {
       ["announcements", "list", userId, filter, page] as const
   },
   projects: {
+    feed: (userId: string, filter: string, searchKey: string) =>
+      ["projects", "feed", userId, filter, searchKey] as const,
     detail: (projectId: string) => ["projects", "detail", projectId] as const
   },
   discussions: {

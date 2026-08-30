@@ -32,6 +32,25 @@ describe("route access policy", () => {
 
     expect(canOpenAuthenticatedRoute(state)).toBe(true);
     expect(canOpenPermissionRoute(state, "navigation.user_management")).toBe(false);
+    expect(canOpenPermissionRoute(state, "navigation.projects")).toBe(false);
     expect(canOpenPermissionRoute(state, "navigation.tasks")).toBe(true);
+  });
+
+  it("requires navigation.projects before exposing project routes", () => {
+    const state: AuthState = {
+      kind: "authorized",
+      session,
+      profile: {
+        id: "user",
+        fullName: "Department Head",
+        email: "head@example.gov",
+        organizationId: null,
+        role: "dept_head",
+        permissions: new Set(["navigation.projects"])
+      }
+    };
+
+    expect(canOpenPermissionRoute(state, "navigation.projects")).toBe(true);
+    expect(canOpenPermissionRoute(state, "projects.create")).toBe(false);
   });
 });

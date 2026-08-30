@@ -178,6 +178,17 @@ See [`PHASE_1_BLOCKER_REPORT.md`](PHASE_1_BLOCKER_REPORT.md) for the backend han
 
 Add Department Head workflows without reproducing desktop-heavy administration screens.
 
+### Active testing boundary — August 30, 2026
+
+Phase 2 is **not complete**. A safe P2.1/P2.3 project read slice is available for testing:
+
+- An authenticated user with `navigation.projects` can open the Projects tab, search and filter a 25-row paged project list, and open a validated UUID detail route.
+- Project reads use the configured Supabase client and remain subject to deployed RLS. Missing, deleted, and RLS-hidden details share one unavailable state and do not reveal record existence.
+- The mobile mapper uses the canonical statuses `planning`, `active`, `on_hold`, `completed`, and `archived`. The known legacy read value `in_progress` maps to `active`; unknown statuses or priorities fail closed.
+- Project creation/editing, members, milestones, rollups, activity, Realtime, task assignment, workload, reports, and AI recommendations remain disabled or unimplemented pending the contracts in `docs/PHASE_2_CONTRACTS.md`.
+
+There is no authorization bypass. `navigation.projects` only controls presentation; RLS remains the read boundary. The slice fetches only project summary fields and does not query evidence paths, private notes, personnel data, report content, or AI context.
+
 ### Scope
 
 #### Department operations
