@@ -34,10 +34,24 @@ describe("notification navigation mapper", () => {
     });
   });
 
-  it("keeps unknown notification types visible but without inventing a destination", () => {
-    expect(mapNotificationRow(row({ type: "financial_approval", task_id: null, project_id: null }))).toMatchObject({
+  it("keeps unknown notification types visible without exposing unsupported workflow details", () => {
+    expect(
+      mapNotificationRow(
+        row({
+          type: "financial_approval",
+          title: "Cash request requires action",
+          message: "A private financial message",
+          task_id: null,
+          project_id: null
+        })
+      )
+    ).toMatchObject({
       kind: "unknown",
-      destination: { kind: "none" }
+      title: "Notification unavailable on mobile",
+      message: "This notification belongs to a workflow that is not yet available in the mobile app.",
+      destination: { kind: "none" },
+      actorId: null,
+      reason: null
     });
   });
 

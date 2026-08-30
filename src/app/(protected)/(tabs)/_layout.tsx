@@ -11,6 +11,10 @@ export default function TabLayout() {
         <NativeTabs.Trigger.Icon sf="house.fill" md="home" />
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="notifications">
+        <NativeTabs.Trigger.Icon sf="bell.fill" md="notifications" />
+        <NativeTabs.Trigger.Label>Inbox</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
       {can("navigation.tasks") ? (
         <NativeTabs.Trigger name="work">
           <NativeTabs.Trigger.Icon sf="checklist" md="checklist" />

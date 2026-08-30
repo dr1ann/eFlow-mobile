@@ -37,10 +37,34 @@ export function mapNotificationRow(row: unknown): Notification {
   if (!parsed.success) throw new ContractMappingError("notification");
 
   const data = parsed.data;
+  const kind = notificationKind(data.type);
+  const isSupportedOnMobile = kind !== "unknown";
+
+  // New notification types can include finance or other workflows that are not
+  // available on mobile. Keep them visible as a generic inbox event without
+  // exposing their title, message, actor, reason, or a destination.
+  if (!isSupportedOnMobile) {
+    return {
+      id: data.id,
+      userId: data.user_id,
+      kind,
+      title: "Notification unavailable on mobile",
+      message: "This notification belongs to a workflow that is not yet available in the mobile app.",
+      isRead: data.read ?? false,
+      createdAt: data.created_at,
+      taskId: null,
+      projectId: null,
+      actorId: null,
+      actorName: null,
+      reason: null,
+      destination: { kind: "none" }
+    };
+  }
+
   return {
     id: data.id,
     userId: data.user_id,
-    kind: notificationKind(data.type),
+    kind,
     title: data.title,
     message: data.message,
     isRead: data.read ?? false,

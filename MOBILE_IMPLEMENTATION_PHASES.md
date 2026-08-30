@@ -244,18 +244,18 @@ There is no authorization bypass. `navigation.projects` only controls presentati
 
 Add lower-frequency or technically complex features after the core mobile workflows are stable.
 
+### Active testing boundary — August 30, 2026
+
+Phase 3 is **not complete**. A safe P3.0/P3.2 notification read slice is available for testing:
+
+- An authenticated, resolved profile can open the Inbox tab, refresh a paged notification list, and see only rows requested for the current profile ID and returned by Supabase RLS.
+- The query selects a minimal inbox projection; it does not select financial-record metadata. Supported task/project notifications may open only the existing permission-gated UUID detail routes, which perform a fresh RLS-backed read.
+- Unknown notification types, including finance-related types, render as a generic unavailable mobile notification without source title, message, actor, reason, linked record ID, or destination.
+- Read-state writes, mark-all behavior, unread counts, Realtime invalidation, push permission/token registration/delivery, chat, AI briefs, proposal import, and all other Phase 3 mutations remain disabled or unimplemented.
+
+There is no notification or authorization bypass. The explicit `user_id` client filter narrows the request but is not a security boundary; recipient-only RLS reads/updates, Realtime delivery, and allowed/denied identity probes must be verified before the Inbox can be considered a completed workflow. See [`docs/PHASE_3_CONTRACTS.md`](docs/PHASE_3_CONTRACTS.md).
+
 ### Candidate scope
-
-#### Budget and petty cash
-
-- Department budget overview.
-- Task and subtask allocations.
-- Contextual task/subtask cash requests against a selected approved budget line, with optional Task Lead subtask caps.
-- Correction, resubmission, reviewer notification, release acknowledgement, and reservation-expiry states.
-- Receipt uploads and liquidation review.
-- Immutable ledger and funding-state visibility.
-
-Financial mutations must remain online-only and server-authoritative.
 
 #### Push notifications
 
@@ -285,6 +285,7 @@ Financial mutations must remain online-only and server-authoritative.
 - Run queued AI decomposition on the existing AI host or a compatible hosted provider.
 - Validate and repair the returned hierarchy on the server or in shared pure logic.
 - Present an editable draft.
+- Keep budget, funding, and petty-cash fields non-operational or unresolved; Phase 3 must not create financial records through proposal import.
 - Require explicit review before an atomic database commit.
 
 #### Other candidates
@@ -299,6 +300,21 @@ Financial mutations must remain online-only and server-authoritative.
 - Each advanced feature has confirmed mobile value and a production-backed web contract.
 - Sensitive actions preserve the same authorization, audit, and approval requirements as the web client.
 - Large or long-running operations survive navigation and app suspension safely.
+
+## Deferred to Phase 4 or later — budget and petty cash
+
+Budget and petty-cash workflows are explicitly excluded from Phase 3. The current web implementation and its deployed schema, RLS, RPC, Storage, lifecycle, and role behavior are not considered stable enough to serve as the authoritative mobile contract.
+
+Reconsider this scope only after a future upstream audit confirms a stable, production-backed financial workflow. A future Phase 4 or later plan may include:
+
+- Department budget overview.
+- Task and subtask allocations.
+- Contextual task/subtask cash requests against a selected approved budget line, with optional Task Lead subtask caps.
+- Correction, resubmission, reviewer notification, release acknowledgement, and reservation-expiry states.
+- Receipt uploads and liquidation review.
+- Immutable ledger and funding-state visibility.
+
+Any future financial mutation must remain online-only, server-authoritative, auditable, and protected by verified RLS/RPC/Storage contracts. None of these items count toward Phase 3 scope or completion.
 
 ## Deferred mobile scope — recommended 30%
 

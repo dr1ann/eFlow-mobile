@@ -59,7 +59,9 @@ Follow the phase definitions and exit criteria in the roadmap:
 1. Phase 0: application shell, routing, authentication, role resolution, clients, query layer, tests, and design tokens.
 2. Phase 1: the employee-to-reviewer vertical slice—tasks, subtasks, evidence, submission, review, notifications, and announcements.
 3. Phase 2: Department Head operations, projects, reports, and safely queued AI recommendations.
-4. Phase 3: budget, push, chat, AI briefs, proposal import, and other advanced workflows.
+4. Phase 3: push, chat, AI briefs, proposal import, and other approved advanced workflows.
+
+Budget and petty-cash workflows are deferred to Phase 4 or later because the web implementation and its deployed contract are not yet stable enough to use as a mobile reference. Do not include them in Phase 3 planning, implementation, or completion claims until a future upstream audit and explicit product decision restore them to scope.
 
 Do not pull Phase 3 complexity into the foundation unless it is genuinely required by an earlier end-to-end workflow.
 
