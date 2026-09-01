@@ -1,11 +1,9 @@
-import type { CanonicalRole } from "@/contracts/roles";
 import type { ReviewEligibility } from "@/contracts/reviews";
 import type { SubtaskSubmission } from "@/contracts/subtasks";
 import type { Task, TaskSubmission } from "@/contracts/tasks";
 
 interface EligibilityContext {
   currentUserId: string;
-  role: CanonicalRole;
   submitterId: string;
 }
 
@@ -17,7 +15,8 @@ function resolveEligibility(
   if (context.currentUserId === context.submitterId) return { kind: "self_review" };
   if (context.currentUserId === primaryReviewerId) return { kind: "primary" };
   if (context.currentUserId === backupReviewerId) return { kind: "backup" };
-  if (context.role === "super_admin") return { kind: "administrator" };
+  // Operational task decisions are never exposed to a Super Admin solely by
+  // virtue of that role. A stored review route is required.
   return { kind: "not_assigned" };
 }
 
@@ -25,10 +24,10 @@ export function getTaskReviewEligibility(
   task: Pick<Task, "reviewerId" | "backupReviewerId">,
   submission: Pick<TaskSubmission, "submitterId">,
   currentUserId: string,
-  role: CanonicalRole
+  _role: import("@/contracts/roles").CanonicalRole
 ): ReviewEligibility {
   return resolveEligibility(
-    { currentUserId, role, submitterId: submission.submitterId },
+    { currentUserId, submitterId: submission.submitterId },
     task.reviewerId,
     task.backupReviewerId
   );
@@ -37,14 +36,14 @@ export function getTaskReviewEligibility(
 export function getSubtaskReviewEligibility(
   submission: Pick<SubtaskSubmission, "reviewerId" | "submitterId">,
   currentUserId: string,
-  role: CanonicalRole
+  _role: import("@/contracts/roles").CanonicalRole
 ): ReviewEligibility {
   return resolveEligibility(
-    { currentUserId, role, submitterId: submission.submitterId },
+    { currentUserId, submitterId: submission.submitterId },
     submission.reviewerId
   );
 }
 
 export function canRequestReviewDecision(eligibility: ReviewEligibility): boolean {
-  return eligibility.kind === "primary" || eligibility.kind === "backup" || eligibility.kind === "administrator";
+  return eligibility.kind === "primary" || eligibility.kind === "backup";
 }

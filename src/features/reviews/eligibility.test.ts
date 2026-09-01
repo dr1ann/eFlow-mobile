@@ -23,7 +23,7 @@ describe("review eligibility", () => {
     [ids.primary, "employee", "primary"],
     [ids.backup, "employee", "backup"],
     [ids.outsider, "employee", "not_assigned"],
-    [ids.outsider, "super_admin", "administrator"]
+    [ids.outsider, "super_admin", "not_assigned"]
   ])("resolves task reviewer %s as %s", (currentUserId, role, expectedKind) => {
     const result = getTaskReviewEligibility(task, { submitterId: ids.submitter }, currentUserId, role);
     expect(result.kind).toBe(expectedKind);

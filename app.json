@@ -8,7 +8,13 @@
     "scheme": "eflow",
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow eFlow to select image evidence for your assigned work."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

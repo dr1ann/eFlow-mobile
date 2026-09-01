@@ -78,6 +78,27 @@ export interface TaskAttachment {
   uploadedAt: string | null;
 }
 
+export interface TaskSubmissionPayload {
+  id: string;
+  note: string;
+  attachments: readonly {
+    fileName: string;
+    filePath: string;
+    fileSize: number;
+    mimeType: string;
+  }[];
+}
+
+export function createTaskSubmissionPayload(
+  id: string,
+  note: string,
+  attachments: TaskSubmissionPayload["attachments"]
+): TaskSubmissionPayload {
+  const trimmedNote = note.trim();
+  if (!trimmedNote) throw new Error("A completion note is required.");
+  return { id, note: trimmedNote, attachments };
+}
+
 export function isTaskStatus(value: string): value is TaskStatus {
   return (TASK_STATUSES as readonly string[]).includes(value);
 }

@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import React from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter, type Href } from "expo-router";
 import { ActivityIndicator, FlatList, Pressable, Text, useColorScheme, View } from "react-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -8,8 +9,19 @@ import { StatusNotice } from "@/components/status-notice";
 import { subtaskStatusLabel, type Subtask } from "@/contracts/subtasks";
 import { taskStatusLabel, type Task } from "@/contracts/tasks";
 import { subtasksByTaskQueryOptions } from "@/features/subtasks/query-options";
-import { taskDetailQueryOptions } from "@/features/tasks/query-options";
+import {
+  taskDetailQueryOptions,
+  taskSubmissionsQueryOptions
+} from "@/features/tasks/query-options";
+import { getTaskReviewEligibility, canRequestReviewDecision } from "@/features/reviews/eligibility";
+import { useStartTaskMutation } from "@/features/tasks/use-task-workflow";
+import { useAuth } from "@/features/auth/auth-context";
 import { formatTaskDate } from "@/features/tasks/presentation";
+import { isTaskLead } from "@/features/tasks/selectors";
+import { isPhase1CapabilityEnabled } from "@/lib/phase-1/capabilities";
+import { SupabaseUserError } from "@/lib/supabase/errors";
+import { subscribeToPhase1TaskWorkflow } from "@/lib/supabase/realtime";
+import { invalidateTaskWorkflow } from "@/features/workflow/cache-invalidation";
 import { colors } from "@/theme/colors";
 import { tokens } from "@/theme/tokens";
 
@@ -18,8 +30,18 @@ interface TaskDetailViewProps {
   subtasks: readonly Subtask[];
   subtasksLoading: boolean;
   subtasksError: boolean;
+  canStartTask?: boolean;
+  canSubmitTask?: boolean;
+  canReviewTask?: boolean;
+  canOpenDiscussion?: boolean;
+  startingTask?: boolean;
+  startError?: string | null;
   onOpenSubtask(subtaskId: string): void;
   onRetrySubtasks(): void;
+  onStartTask?(): void;
+  onSubmitTask?(): void;
+  onReviewTask?(): void;
+  onOpenDiscussion?(): void;
 }
 
 export function TaskDetailView({
@@ -27,8 +49,18 @@ export function TaskDetailView({
   subtasks,
   subtasksLoading,
   subtasksError,
+  canStartTask = false,
+  canSubmitTask = false,
+  canReviewTask = false,
+  canOpenDiscussion = false,
+  startingTask = false,
+  startError = null,
   onOpenSubtask,
-  onRetrySubtasks
+  onRetrySubtasks,
+  onStartTask,
+  onSubmitTask,
+  onReviewTask,
+  onOpenDiscussion
 }: TaskDetailViewProps) {
   useColorScheme();
 
@@ -59,6 +91,14 @@ export function TaskDetailView({
           </View>
 
           {task.feedback ? <StatusNotice tone="warning">{task.feedback}</StatusNotice> : null}
+
+          {canStartTask && onStartTask ? (
+            <Button label="Start work" loading={startingTask} onPress={onStartTask} />
+          ) : null}
+          {canSubmitTask && onSubmitTask ? <Button label="Submit task for review" onPress={onSubmitTask} /> : null}
+          {canReviewTask && onReviewTask ? <Button label="Review task submission" onPress={onReviewTask} /> : null}
+          {canOpenDiscussion && onOpenDiscussion ? <Button label="Task discussion" variant="secondary" onPress={onOpenDiscussion} /> : null}
+          {startError ? <StatusNotice tone="danger">{startError}</StatusNotice> : null}
 
           <DetailSection title="Schedule">
             <DetailValue label="Deadline" value={formatTaskDate(task.deadline ?? task.dueDate)} />
@@ -101,7 +141,7 @@ export function TaskDetailView({
           </DetailSection>
 
           <StatusNotice tone="warning">
-            Evidence upload and submission remain disabled. Opening a subtask allows local picker testing only; no file leaves the device.
+            Evidence remains private. Actions appear only after their individual live-operation checks are enabled; server rules still decide access.
           </StatusNotice>
 
           <Text selectable style={{ color: colors.label, fontSize: tokens.type.title, fontWeight: "800" }}>
@@ -205,11 +245,26 @@ function SubtaskListItem({ subtask, onPress }: { subtask: Subtask; onPress(): vo
 
 export function TaskDetailScreen({ taskId }: { taskId: string }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { state } = useAuth();
   const taskQuery = useQuery(taskDetailQueryOptions(taskId));
+  const startTaskMutation = useStartTaskMutation();
+  const submissionsQuery = useQuery({
+    ...taskSubmissionsQueryOptions(taskId, 0),
+    enabled: taskQuery.isSuccess && taskQuery.data !== null
+  });
   const subtasksQuery = useQuery({
     ...subtasksByTaskQueryOptions(taskId),
     enabled: taskQuery.data !== null && taskQuery.isSuccess
   });
+  const realtimeEnabled = isPhase1CapabilityEnabled("phase1Realtime");
+
+  React.useEffect(() => {
+    if (!realtimeEnabled || !taskQuery.data) return;
+    return subscribeToPhase1TaskWorkflow(taskId, () => {
+      void invalidateTaskWorkflow(queryClient, taskId);
+    });
+  }, [queryClient, realtimeEnabled, taskId, taskQuery.data]);
 
   if (taskQuery.isLoading) {
     return (
@@ -243,13 +298,50 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
     );
   }
 
+  if (state.kind !== "authorized") return null;
+  const canStartTask =
+    isPhase1CapabilityEnabled("taskTransition") &&
+    isTaskLead(taskQuery.data, state.profile.id) &&
+    (taskQuery.data.status === "todo" || taskQuery.data.status === "changes_requested");
+  const canSubmitTask =
+    isPhase1CapabilityEnabled("taskSubmit") &&
+    isPhase1CapabilityEnabled("evidenceUpload") &&
+    isPhase1CapabilityEnabled("evidenceRules") &&
+    isTaskLead(taskQuery.data, state.profile.id) &&
+    taskQuery.data.status === "in_progress" &&
+    (subtasksQuery.data ?? []).every((subtask) => subtask.status === "completed" && subtask.isCompleted);
+  const pendingSubmission = submissionsQuery.data?.find((submission) => submission.status === "pending");
+  const canReviewTask =
+    isPhase1CapabilityEnabled("taskDecision") &&
+    pendingSubmission !== undefined &&
+    canRequestReviewDecision(getTaskReviewEligibility(taskQuery.data, pendingSubmission, state.profile.id, state.profile.role));
+  const startError = startTaskMutation.error instanceof SupabaseUserError
+    ? startTaskMutation.error.message
+    : startTaskMutation.error instanceof Error
+      ? "We could not start this task. Refresh to confirm its current status."
+      : null;
+
   return (
     <TaskDetailView
       task={taskQuery.data}
       subtasks={subtasksQuery.data ?? []}
       subtasksLoading={subtasksQuery.isLoading}
       subtasksError={subtasksQuery.isError}
+      canStartTask={canStartTask}
+      canSubmitTask={canSubmitTask}
+      canReviewTask={canReviewTask}
+      canOpenDiscussion={isPhase1CapabilityEnabled("taskComments")}
+      startingTask={startTaskMutation.isPending}
+      startError={startError}
       onRetrySubtasks={() => void subtasksQuery.refetch()}
+      onStartTask={() => startTaskMutation.mutate(taskId)}
+      onSubmitTask={() =>
+        router.push({ pathname: "/tasks/[task-id]/submit", params: { "task-id": taskId } })
+      }
+      onReviewTask={() => router.push(`/reviews/tasks/${taskId}` as Href)}
+      onOpenDiscussion={() =>
+        router.push({ pathname: "/tasks/[task-id]/discussion", params: { "task-id": taskId } })
+      }
       onOpenSubtask={(subtaskId) =>
         router.push({ pathname: "/subtasks/[subtask-id]", params: { "subtask-id": subtaskId } })
       }

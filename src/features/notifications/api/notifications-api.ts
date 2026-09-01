@@ -1,5 +1,6 @@
 import type { Notification } from "@/contracts/notifications";
-import { toSupabaseUserError } from "@/lib/supabase/errors";
+import { requireCurrentOnlineMutation } from "@/lib/phase-1/online";
+import { SupabaseUserError, toSupabaseUserError } from "@/lib/supabase/errors";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 import { mapNotificationRow } from "../mappers";
@@ -60,4 +61,31 @@ export async function getNotificationForRecipient(
   const { data, error } = await request.maybeSingle();
   if (error) throw toSupabaseUserError(error);
   return data ? mapNotificationRow(data) : null;
+}
+
+/** Marks exactly one recipient-owned notification as read; RLS remains final. */
+export async function markNotificationRead(notificationId: string, userId: string): Promise<void> {
+  requireCurrentOnlineMutation();
+  const { data, error } = await getSupabaseClient()
+    .from("notifications")
+    .update({ read: true })
+    .eq("id", notificationId)
+    .eq("user_id", userId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw toSupabaseUserError(error);
+  if (!data) throw new SupabaseUserError("forbidden", "This notification is unavailable.");
+}
+
+/** Marks only the current recipient's unread notifications; it is never replayed offline. */
+export async function markAllNotificationsRead(userId: string): Promise<number> {
+  requireCurrentOnlineMutation();
+  const { data, error } = await getSupabaseClient()
+    .from("notifications")
+    .update({ read: true })
+    .eq("user_id", userId)
+    .eq("read", false)
+    .select("id");
+  if (error) throw toSupabaseUserError(error);
+  return data?.length ?? 0;
 }

@@ -1,6 +1,9 @@
 import {
+  createSubtaskEvidencePath,
   createSubtaskSubmissionPayload,
+  createTaskEvidencePath,
   normalizeEvidenceAsset,
+  parseEvidenceRules,
   sanitizeEvidenceName,
   validateEvidenceAssets
 } from "@/features/subtasks/evidence";
@@ -57,5 +60,47 @@ describe("evidence normalization and validation", () => {
       fileSize: 12,
       mimeType: "application/pdf"
     }])).toMatchObject({ id: "attempt-1", note: "Done" });
+  });
+
+  it("maps the server-owned rules and uses only recognized private paths", () => {
+    const rules = parseEvidenceRules({
+      bucketId: "task-attachments",
+      maxFileBytes: 52_428_800,
+      maxFilesPerSubmission: 10,
+      recommendedSignedUrlSeconds: 300,
+      orphanMinimumAgeHours: 24,
+      allowedMimeTypes: ["APPLICATION/PDF", "image/jpeg"]
+    });
+    const taskId = "11111111-1111-4111-8111-111111111111";
+    const subtaskId = "22222222-2222-4222-8222-222222222222";
+    const submissionId = "33333333-3333-4333-8333-333333333333";
+    const asset = { uri: "file://report", displayName: "report.pdf", mimeType: "application/pdf", size: 10 };
+
+    expect(rules).toMatchObject({
+      bucketId: "task-attachments",
+      maximumBytesPerFile: 52_428_800,
+      acceptedMimeTypes: ["application/pdf", "image/jpeg"]
+    });
+    expect(createTaskEvidencePath(taskId, submissionId, asset, 0, "suffix")).toBe(
+      `${taskId}/${submissionId}/1-suffix-report.pdf`
+    );
+    expect(createSubtaskEvidencePath(subtaskId, "progress", asset, 0, "suffix")).toBe(
+      `subtasks/${subtaskId}/progress/1-suffix-report.pdf`
+    );
+    expect(createSubtaskEvidencePath(subtaskId, submissionId, asset, 1, "suffix")).toBe(
+      `subtasks/${subtaskId}/${submissionId}/2-suffix-report.pdf`
+    );
+  });
+
+  it("fails closed when rules or path identifiers do not match the contract", () => {
+    expect(() => parseEvidenceRules({ bucketId: "public", allowedMimeTypes: [] })).toThrow(
+      "task evidence rules"
+    );
+    expect(() => createTaskEvidencePath("bad", "also-bad", {
+      uri: "file://report",
+      displayName: "report.pdf",
+      mimeType: "application/pdf",
+      size: 1
+    }, 0, "suffix")).toThrow("Task id");
   });
 });

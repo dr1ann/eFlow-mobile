@@ -30,9 +30,12 @@ const baseProps = {
   hasNextPage: false,
   isFetchingNextPage: false,
   canOpenNotification: jest.fn(() => true),
+  canMarkRead: false,
+  markingNotificationId: null,
   onRefresh: jest.fn(),
   onLoadMore: jest.fn(),
-  onOpenNotification: jest.fn()
+  onOpenNotification: jest.fn(),
+  onMarkRead: jest.fn()
 };
 
 describe("NotificationListScreenView", () => {

@@ -3,6 +3,8 @@ import {
   NOTIFICATION_SELECT,
   getNotificationForRecipient,
   listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
   notificationPageRange
 } from "@/features/notifications/api/notifications-api";
 import { SupabaseUserError } from "@/lib/supabase/errors";
@@ -37,6 +39,7 @@ const notificationRow = {
 function createQuery(result: unknown) {
   const query = {
     select: jest.fn(),
+    update: jest.fn(),
     eq: jest.fn(),
     order: jest.fn(),
     range: jest.fn(),
@@ -44,11 +47,15 @@ function createQuery(result: unknown) {
     maybeSingle: jest.fn()
   };
   query.select.mockReturnValue(query);
+  query.update.mockReturnValue(query);
   query.eq.mockReturnValue(query);
   query.order.mockReturnValue(query);
   query.range.mockResolvedValue(result);
   query.abortSignal.mockReturnValue(query);
   query.maybeSingle.mockResolvedValue(result);
+  Object.assign(query, {
+    then: (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve)
+  });
   return query;
 }
 
@@ -108,5 +115,21 @@ describe("notification read API", () => {
 
   it("normalizes negative page inputs", () => {
     expect(notificationPageRange(-2)).toEqual([0, NOTIFICATION_PAGE_SIZE - 1]);
+  });
+
+  it("writes read state only through a recipient-scoped update", async () => {
+    const query = createQuery({ data: { id: ids.notification }, error: null });
+    mockFrom.mockReturnValue(query);
+
+    await expect(markNotificationRead(ids.notification, ids.user)).resolves.toBeUndefined();
+    expect(query.update).toHaveBeenCalledWith({ read: true });
+    expect(query.eq).toHaveBeenNthCalledWith(1, "id", ids.notification);
+    expect(query.eq).toHaveBeenNthCalledWith(2, "user_id", ids.user);
+
+    const all = createQuery({ data: [{ id: ids.notification }], error: null });
+    mockFrom.mockReturnValue(all);
+    await expect(markAllNotificationsRead(ids.user)).resolves.toBe(1);
+    expect(all.eq).toHaveBeenNthCalledWith(1, "user_id", ids.user);
+    expect(all.eq).toHaveBeenNthCalledWith(2, "read", false);
   });
 });

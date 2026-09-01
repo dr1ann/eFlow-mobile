@@ -4,7 +4,6 @@ import { ContractMappingError } from "@/contracts/contract-errors";
 import type { Notification, NotificationDestination, NotificationKind } from "@/contracts/notifications";
 
 const nullableText = z.string().nullable();
-const nullableUuid = z.string().uuid().nullable();
 
 const notificationRowSchema = z.object({
   id: z.string().uuid(),
@@ -12,11 +11,11 @@ const notificationRowSchema = z.object({
   type: z.string(),
   title: z.string().trim().min(1),
   message: z.string(),
-  read: z.boolean().nullable(),
+  read: z.boolean().nullish(),
   created_at: nullableText,
-  task_id: nullableUuid,
-  project_id: nullableUuid,
-  actor_id: nullableUuid,
+  task_id: nullableText,
+  project_id: nullableText,
+  actor_id: nullableText,
   actor_name: nullableText,
   reason: nullableText
 });

@@ -46,6 +46,11 @@ describe("subtask mappers", () => {
     });
   });
 
+  it("maps a subtask row when assigned_to_ids is nullish", () => {
+    const mapped = mapSubtaskRow(subtaskRow({ assigned_to_ids: null }));
+    expect(mapped.assignedToIds).toEqual([]);
+  });
+
   it("fails closed for statuses outside the deployed subtask lifecycle", () => {
     expect(() => mapSubtaskRow(subtaskRow({ status: "cancelled" }))).toThrow(ContractMappingError);
   });

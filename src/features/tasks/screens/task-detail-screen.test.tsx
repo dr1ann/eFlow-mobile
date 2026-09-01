@@ -68,7 +68,7 @@ describe("TaskDetailView", () => {
 
     expect(view.getByText(/Figures are reconciled/)).toBeTruthy();
     expect(view.getByText("Reviewer-ready report")).toBeTruthy();
-    expect(view.getByText(/local picker testing only/i)).toBeTruthy();
+    expect(view.getByText(/Evidence remains private/i)).toBeTruthy();
     await fireEvent.press(view.getByLabelText(/Open Collect source figures/));
     expect(onOpenSubtask).toHaveBeenCalledWith(subtask.id);
   });

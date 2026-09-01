@@ -6,7 +6,7 @@
 - Mobile stack: Expo, React Native, and TypeScript
 - Web upstream: [Rivaly-Kun/eFlow-e-Governance-Project](https://github.com/Rivaly-Kun/eFlow-e-Governance-Project)
 - Web audit baseline: [`508aabc8881630b37a62a973645ecb0bb386e99e`](https://github.com/Rivaly-Kun/eFlow-e-Governance-Project/commit/508aabc8881630b37a62a973645ecb0bb386e99e)
-- Latest upstream `main` inspected: `7b072123a20876940be84217dbb6af3ad8d2700f`; this is not yet the adopted mobile baseline
+- Latest upstream `main` inspected: `042e1a5b240cf667eb3dfa69d263897686de2a04`; this is not yet the adopted mobile baseline
 - Baseline date: August 27, 2026
 
 ## Scope principle
@@ -97,18 +97,20 @@ src/
 
 Deliver the most frequent mobile workflow: receiving work, performing it, attaching evidence, and sending it through review.
 
-### Active testing boundary — August 29, 2026
+### Active testing boundary — August 31, 2026
 
-Phase 1 is **not complete**, and its exit criteria below remain open. A safe partial slice is available for testing:
+Phase 1 is **not complete**, and its exit criteria below remain open. A guarded integration slice is now implemented:
 
-- An authenticated user with `navigation.tasks` can open the Work tab, filter and refresh a paged task list, open task and subtask details, and follow validated UUID routes.
-- Task and subtask reads use the configured Supabase client and remain subject to deployed RLS. Empty or rejected detail reads do not reveal whether a record exists.
-- An assigned contributor can exercise the native document/image selection flow and see local file metadata. The local URI and file contents are not logged, uploaded, or persisted.
-- Start/resume, progress writes, evidence upload, submission, review decisions, notifications, announcements, comments, and Realtime workflow refresh remain disabled or unimplemented.
+- An authenticated user with `navigation.tasks` can open paged task/subtask lists and details, plus the implemented start/resume, `0..99%` progress, private subtask/parent evidence submission, reviewer-inbox, and review routes when their corresponding live capability is enabled. Task/subtask reads and all protected routes remain subject to Supabase RLS.
+- The implementation uses the generated task state/progress/submission/review RPCs, server-owned evidence rules, UUID attempt paths, array-buffer upload with `upsert: false`, short-lived signed reads, and claim-before-remove cleanup. It never deletes candidate evidence after an ambiguous timeout/offline/duplicate result.
+- Recipient notification read writes, recipient announcements, text-only task comments, and task-scoped foreground Realtime adapters/screens are implemented separately. Super Admin has no mobile operational-review shortcut; a stored primary/backup review route is required.
+- Native bottom navigation is capped at five items to satisfy `react-native-screens` on Android. Reviews, Notices, and Settings are permission-gated stack destinations under More, not additional bottom tabs.
+- Every new live surface is controlled by an explicit per-operation `EXPO_PUBLIC_PHASE_1_LIVE_CAPABILITIES` allow-list and defaults off. This is only UX/release control: RLS, Storage policies, triggers, and RPCs remain the authorization boundary.
+- `src/contracts/database.types.ts` was regenerated on August 31, 2026 against the configured project and now includes `get_task_evidence_rules` and `claim_task_evidence_cleanup`. The committed `20260831000001_task_evidence_security.sql` matches web `main`; the teammate reports it is deployed. No migration was applied from mobile.
 
-There is deliberately no security bypass. The inspected schema still has the broad `taskfiles_rw` Storage policy, which authorizes task-bucket objects using only an authenticated-session check. Until the backend owner replaces it with task-scoped private-object policies and allowed/denied identity probes pass, the mobile app must not upload, download, delete, or submit evidence. The linked Supabase CLI migration list is also empty; this is an auditability problem, not proof that the deployed schema is missing, and the mobile repository must not repair or push that history blindly.
+There is deliberately no authorization bypass. Development fixtures, if added, must be explicit and development-only; exact non-production identities are preferred for integration work. Each live Storage/RPC/read/write capability remains disabled until its own allowed/denied probe passes. Do not disable RLS, use a service-role key, make the bucket public, or report fixture-backed behavior as live integration. The earlier linked Supabase CLI migration list was empty; this remains an auditability problem, not proof that the deployed schema is missing, and the mobile repository must not repair or push that history blindly. `npm run check` passes (52 suites / 161 tests). The standard `npm run build:verify` still fails in this Windows environment while spawning Hermes bytecode (`spawn UNKNOWN`); no-bytecode Android and iOS exports with one worker succeeded, so Hermes bytecode/native-device verification remains open.
 
-See [`PHASE_1_BLOCKER_REPORT.md`](PHASE_1_BLOCKER_REPORT.md) for the backend handoff and the exact conditions for enabling the remaining workflow.
+See [`PHASE_1_IMPLEMENTATION_PLAN.md`](PHASE_1_IMPLEMENTATION_PLAN.md) for the per-operation full-integration sequence and [`PHASE_1_TO_3_BACKEND_BLOCKER_REPORT.md`](PHASE_1_TO_3_BACKEND_BLOCKER_REPORT.md) for the backend handoff and release-verification gates.
 
 ### Scope
 
@@ -251,7 +253,7 @@ Phase 3 is **not complete**. A safe P3.0/P3.2 notification read slice is availab
 - An authenticated, resolved profile can open the Inbox tab, refresh a paged notification list, and see only rows requested for the current profile ID and returned by Supabase RLS.
 - The query selects a minimal inbox projection; it does not select financial-record metadata. Supported task/project notifications may open only the existing permission-gated UUID detail routes, which perform a fresh RLS-backed read.
 - Unknown notification types, including finance-related types, render as a generic unavailable mobile notification without source title, message, actor, reason, linked record ID, or destination.
-- Read-state writes, mark-all behavior, unread counts, Realtime invalidation, push permission/token registration/delivery, chat, AI briefs, proposal import, and all other Phase 3 mutations remain disabled or unimplemented.
+- Phase 1 now contains capability-gated recipient-owned mark-one and mark-all adapters, but both default disabled until recipient-only live probes pass. Unread counts, mark-all UI, notification Realtime invalidation, push permission/token registration/delivery, chat, AI briefs, proposal import, and all other Phase 3 mutations remain disabled or unimplemented.
 
 There is no notification or authorization bypass. The explicit `user_id` client filter narrows the request but is not a security boundary; recipient-only RLS reads/updates, Realtime delivery, and allowed/denied identity probes must be verified before the Inbox can be considered a completed workflow. See [`docs/PHASE_3_CONTRACTS.md`](docs/PHASE_3_CONTRACTS.md).
 

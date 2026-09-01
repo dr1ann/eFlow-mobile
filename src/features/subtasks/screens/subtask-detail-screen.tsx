@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, Text, useColorScheme, View } from "react-native";
 
 import { AppScreen } from "@/components/app-screen";
@@ -8,22 +8,39 @@ import { StatusNotice } from "@/components/status-notice";
 import { subtaskStatusLabel, type Subtask } from "@/contracts/subtasks";
 import { useAuth } from "@/features/auth/auth-context";
 import { EvidencePickerPreview } from "@/features/subtasks/components/evidence-picker-preview";
-import { subtaskDetailQueryOptions } from "@/features/subtasks/query-options";
+import {
+  subtaskDetailQueryOptions,
+  subtaskSubmissionsQueryOptions
+} from "@/features/subtasks/query-options";
+import { getSubtaskReviewEligibility, canRequestReviewDecision } from "@/features/reviews/eligibility";
 import { isMySubtask } from "@/features/tasks/selectors";
 import { formatTaskDate } from "@/features/tasks/presentation";
+import { isPhase1CapabilityEnabled } from "@/lib/phase-1/capabilities";
 import { colors } from "@/theme/colors";
 import { tokens } from "@/theme/tokens";
 
 interface SubtaskDetailViewProps {
   subtask: Subtask;
   canPrepareEvidence: boolean;
+  canUpdateProgress?: boolean;
+  canSubmit?: boolean;
+  canReview?: boolean;
   onOpenTask(): void;
+  onUpdateProgress?(): void;
+  onSubmit?(): void;
+  onReview?(): void;
 }
 
 export function SubtaskDetailView({
   subtask,
   canPrepareEvidence,
-  onOpenTask
+  canUpdateProgress = false,
+  canSubmit = false,
+  canReview = false,
+  onOpenTask,
+  onUpdateProgress,
+  onSubmit,
+  onReview
 }: SubtaskDetailViewProps) {
   useColorScheme();
 
@@ -78,6 +95,13 @@ export function SubtaskDetailView({
       </View>
 
       <View style={{ gap: tokens.space.md }}>
+        {canUpdateProgress && onUpdateProgress ? (
+          <Button label="Update progress" onPress={onUpdateProgress} />
+        ) : null}
+        {canSubmit && onSubmit ? (
+          <Button label="Submit for review" onPress={onSubmit} />
+        ) : null}
+        {canReview && onReview ? <Button label="Review submission" onPress={onReview} /> : null}
         <Text selectable style={{ color: colors.label, fontSize: tokens.type.title, fontWeight: "800" }}>
           Evidence picker test
         </Text>
@@ -110,6 +134,10 @@ export function SubtaskDetailScreen({ subtaskId }: { subtaskId: string }) {
   const router = useRouter();
   const { state } = useAuth();
   const query = useQuery(subtaskDetailQueryOptions(subtaskId));
+  const submissionsQuery = useQuery({
+    ...subtaskSubmissionsQueryOptions(subtaskId, 0),
+    enabled: query.isSuccess && query.data !== null
+  });
 
   if (state.kind !== "authorized") return null;
 
@@ -150,14 +178,30 @@ export function SubtaskDetailScreen({ subtaskId }: { subtaskId: string }) {
     query.data.status === "in_progress" ||
     query.data.status === "changes_requested";
   const subtask = query.data;
+  const isAssignedContributor = editableStatus && isMySubtask(subtask, state.profile.id);
+  const pendingSubmission = submissionsQuery.data?.find((submission) => submission.status === "pending");
+  const canReview =
+    isPhase1CapabilityEnabled("subtaskDecision") &&
+    pendingSubmission !== undefined &&
+    canRequestReviewDecision(getSubtaskReviewEligibility(pendingSubmission, state.profile.id, state.profile.role));
 
   return (
     <SubtaskDetailView
       subtask={subtask}
-      canPrepareEvidence={editableStatus && isMySubtask(subtask, state.profile.id)}
+      canPrepareEvidence={isAssignedContributor}
+      canUpdateProgress={isAssignedContributor && isPhase1CapabilityEnabled("subtaskProgress")}
+      canSubmit={isAssignedContributor && isPhase1CapabilityEnabled("subtaskSubmit") && isPhase1CapabilityEnabled("evidenceUpload") && isPhase1CapabilityEnabled("evidenceRules")}
+      canReview={canReview}
       onOpenTask={() =>
         router.push({ pathname: "/tasks/[task-id]", params: { "task-id": subtask.taskId } })
       }
+      onUpdateProgress={() =>
+        router.push({ pathname: "/subtasks/[subtask-id]/progress", params: { "subtask-id": subtask.id } })
+      }
+      onSubmit={() =>
+        router.push({ pathname: "/subtasks/[subtask-id]/submit", params: { "subtask-id": subtask.id } })
+      }
+      onReview={() => router.push(`/reviews/subtasks/${subtask.id}` as Href)}
     />
   );
 }

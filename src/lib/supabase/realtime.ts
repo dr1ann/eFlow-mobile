@@ -3,12 +3,25 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getSupabaseClient } from "@/lib/supabase/client";
 
 type ChangeCallback = () => void;
+type RealtimeTable =
+  | "profiles"
+  | "system_config"
+  | "role_permissions"
+  | "user_permission_overrides"
+  | "tasks"
+  | "subtasks"
+  | "subtask_progress_updates"
+  | "subtask_submissions"
+  | "task_submissions"
+  | "notifications"
+  | "announcements"
+  | "task_comments";
 
 const activeChannels = new Map<string, RealtimeChannel>();
 
 function subscribe(
   key: string,
-  table: "profiles" | "system_config" | "role_permissions" | "user_permission_overrides",
+  table: RealtimeTable,
   filter: string,
   callback: ChangeCallback
 ): () => void {
@@ -31,6 +44,37 @@ function subscribe(
     if (activeChannels.get(key) !== channel) return;
     activeChannels.delete(key);
     void supabase.removeChannel(channel);
+  };
+}
+
+/**
+ * Subscribes to a narrowly scoped public table only after its publication and
+ * allowed/denied Realtime probe have been accepted for mobile.
+ */
+export function subscribeToScopedTable(
+  key: string,
+  table: RealtimeTable,
+  filter: string,
+  callback: ChangeCallback
+): () => void {
+  return subscribe(key, table, filter, callback);
+}
+
+export function subscribeToPhase1TaskWorkflow(
+  taskId: string,
+  callback: ChangeCallback
+): () => void {
+  const unsubscribe = [
+    subscribe(`phase1-task:${taskId}`, "tasks", `id=eq.${taskId}`, callback),
+    subscribe(`phase1-subtasks:${taskId}`, "subtasks", `task_id=eq.${taskId}`, callback),
+    subscribe(`phase1-subtask-progress:${taskId}`, "subtask_progress_updates", `task_id=eq.${taskId}`, callback),
+    subscribe(`phase1-subtask-submissions:${taskId}`, "subtask_submissions", `task_id=eq.${taskId}`, callback),
+    subscribe(`phase1-task-submissions:${taskId}`, "task_submissions", `task_id=eq.${taskId}`, callback),
+    subscribe(`phase1-comments:${taskId}`, "task_comments", `task_id=eq.${taskId}`, callback)
+  ];
+
+  return () => {
+    for (const stop of unsubscribe) stop();
   };
 }
 
@@ -75,4 +119,3 @@ export function clearRealtimeChannels(): void {
 export function activeRealtimeChannelCount(): number {
   return activeChannels.size;
 }
-

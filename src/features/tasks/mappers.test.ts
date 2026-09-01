@@ -59,6 +59,22 @@ describe("task mappers", () => {
     });
   });
 
+  it("maps proposal-imported tasks with slug project identifiers and nullish array fields", () => {
+    const row = taskRow({
+      project_id: "proposal-test-program-1-program-1xs-project-1-project-1ssa",
+      team_member_ids: null,
+      team_member_names: null,
+      dependency_ids: null,
+      tags: null
+    });
+    const mapped = mapTaskRow(row);
+    expect(mapped.projectId).toBe("proposal-test-program-1-program-1xs-project-1-project-1ssa");
+    expect(mapped.teamMemberIds).toEqual([]);
+    expect(mapped.teamMemberNames).toEqual([]);
+    expect(mapped.dependencyIds).toEqual([]);
+    expect(mapped.tags).toEqual([]);
+  });
+
   it("fails closed for an unsupported workflow status", () => {
     expect(() => mapTaskRow(taskRow({ status: "approved_by_ai" }))).toThrow(ContractMappingError);
   });

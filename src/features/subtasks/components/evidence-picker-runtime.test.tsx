@@ -2,13 +2,18 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 
 import { EvidencePickerPreview } from "@/features/subtasks/components/evidence-picker-preview";
 
-jest.mock("expo-document-picker", () => {
-  throw new Error("Cannot find native module 'ExpoDocumentPicker'");
-});
+jest.mock("expo-document-picker", () => ({
+  getDocumentAsync: jest.fn(async () => {
+    throw new Error("Cannot find native module 'ExpoDocumentPicker'");
+  })
+}));
 
-jest.mock("expo-image-picker", () => {
-  throw new Error("Cannot find native module 'ExponentImagePicker'");
-});
+jest.mock("expo-image-picker", () => ({
+  requestMediaLibraryPermissionsAsync: jest.fn(async () => ({ granted: true })),
+  launchImageLibraryAsync: jest.fn(async () => {
+    throw new Error("Cannot find native module 'ExponentImagePicker'");
+  })
+}));
 
 describe("EvidencePickerPreview native runtime recovery", () => {
   it("renders before loading optional native modules and explains how to recover", async () => {

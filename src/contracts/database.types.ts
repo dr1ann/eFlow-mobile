@@ -12,7 +12,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -4562,6 +4562,10 @@ export type Database = {
         }
         Returns: Json
       }
+      archive_completed_project: {
+        Args: { p_project_id: string; p_reason?: string }
+        Returns: undefined
+      }
       archive_proposal_delivery: {
         Args: { p_draft_id: string; p_reason: string }
         Returns: Json
@@ -4918,6 +4922,10 @@ export type Database = {
         }
         Returns: number
       }
+      claim_task_evidence_cleanup: {
+        Args: { p_bucket_id?: string; p_object_name: string }
+        Returns: boolean
+      }
       close_department_fiscal_budget: {
         Args: { p_budget_id: string; p_reason: string }
         Returns: undefined
@@ -4930,6 +4938,10 @@ export type Database = {
       commit_collaboration_draft: {
         Args: { p_draft_id: string; p_revision_id: string }
         Returns: Json
+      }
+      complete_project: {
+        Args: { p_note?: string; p_project_id: string }
+        Returns: undefined
       }
       complete_proposal_delivery: {
         Args: { p_draft_id: string; p_note?: string }
@@ -5371,6 +5383,11 @@ export type Database = {
       dispatch_hierarchy_deadline_reminders: { Args: never; Returns: number }
       dispatch_task_reminders: { Args: never; Returns: number }
       dispatch_task_review_reminders: { Args: never; Returns: number }
+      get_project_completion_readiness: {
+        Args: { p_project_id: string }
+        Returns: Json
+      }
+      get_task_evidence_rules: { Args: never; Returns: Json }
       get_task_funding_context: {
         Args: { p_subtask_id?: string; p_task_id: string }
         Returns: Json
@@ -5437,6 +5454,14 @@ export type Database = {
         Args: { target_organization: string }
         Returns: string[]
       }
+      override_petty_cash_release_schedule: {
+        Args: { p_reason: string; p_release_id: string }
+        Returns: undefined
+      }
+      project_completion_readiness_internal: {
+        Args: { p_project_id: string }
+        Returns: Json
+      }
       publish_department_proposal: {
         Args: { p_draft_id: string }
         Returns: Json
@@ -5469,6 +5494,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      record_petty_cash_release_internal: {
+        Args: { p_override_reason: string; p_release_id: string }
+        Returns: undefined
       }
       recuse_and_delegate_collaboration_review: {
         Args: {

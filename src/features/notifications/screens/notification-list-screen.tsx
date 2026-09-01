@@ -1,5 +1,5 @@
 import React from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import {
   ActivityIndicator,
@@ -16,6 +16,7 @@ import { StatusNotice } from "@/components/status-notice";
 import type { Notification } from "@/contracts/notifications";
 import type { PermissionKey } from "@/contracts/permissions";
 import { useAuth } from "@/features/auth/auth-context";
+import { markNotificationRead } from "@/features/notifications/api/notifications-api";
 import {
   canOpenNotificationDestination,
   notificationNavigationTarget
@@ -25,6 +26,9 @@ import {
   type NotificationFeedPage
 } from "@/features/notifications/query-options";
 import { formatTaskDate } from "@/features/tasks/presentation";
+import { isPhase1CapabilityEnabled } from "@/lib/phase-1/capabilities";
+import { queryKeys } from "@/lib/query/keys";
+import { subscribeToScopedTable } from "@/lib/supabase/realtime";
 import { colors } from "@/theme/colors";
 import { tokens } from "@/theme/tokens";
 
@@ -47,9 +51,12 @@ interface NotificationListScreenViewProps {
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
   canOpenNotification(notification: Notification): boolean;
+  canMarkRead: boolean;
+  markingNotificationId: string | null;
   onRefresh(): void;
   onLoadMore(): void;
   onOpenNotification(notification: Notification): void;
+  onMarkRead(notification: Notification): void;
 }
 
 export function NotificationListScreenView({
@@ -61,9 +68,12 @@ export function NotificationListScreenView({
   hasNextPage,
   isFetchingNextPage,
   canOpenNotification,
+  canMarkRead,
+  markingNotificationId,
   onRefresh,
   onLoadMore,
-  onOpenNotification
+  onOpenNotification,
+  onMarkRead
 }: NotificationListScreenViewProps) {
   useColorScheme();
 
@@ -121,13 +131,10 @@ export function NotificationListScreenView({
           ) : null}
         </View>
       }
-      renderItem={({ item }) => (
-        <NotificationListItem
-          notification={item}
-          canOpen={canOpenNotification(item)}
-          onPress={() => onOpenNotification(item)}
-        />
-      )}
+      renderItem={({ item }) => <View style={{ gap: tokens.space.sm }}>
+        <NotificationListItem notification={item} canOpen={canOpenNotification(item)} onPress={() => onOpenNotification(item)} />
+        {!item.isRead && canMarkRead ? <Button label="Mark read" variant="secondary" loading={markingNotificationId === item.id} onPress={() => onMarkRead(item)} /> : null}
+      </View>}
       ListEmptyComponent={
         <View
           style={{
@@ -243,7 +250,30 @@ function AuthorizedNotificationListScreen({
   can: (permission: PermissionKey) => boolean;
 }) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const query = useInfiniteQuery(notificationsInfiniteQueryOptions(userId));
+  const canMarkRead = isPhase1CapabilityEnabled("notificationWrites");
+  const markReadMutation = useMutation({
+    mutationFn: (notificationId: string) => markNotificationRead(notificationId, userId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.feed(userId) });
+      await queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread(userId) });
+    }
+  });
+
+  React.useEffect(() => {
+    if (!isPhase1CapabilityEnabled("phase1Realtime")) return;
+    return subscribeToScopedTable(
+      `notifications:${userId}`,
+      "notifications",
+      `user_id=eq.${userId}`,
+      () => {
+        void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.feed(userId) });
+        void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unread(userId) });
+      }
+    );
+  }, [queryClient, userId]);
+
   const notifications = React.useMemo(
     () => flattenNotificationFeed(query.data?.pages),
     [query.data?.pages]
@@ -259,6 +289,8 @@ function AuthorizedNotificationListScreen({
       hasNextPage={query.hasNextPage ?? false}
       isFetchingNextPage={query.isFetchingNextPage}
       canOpenNotification={(notification) => canOpenNotificationDestination(notification, can)}
+      canMarkRead={canMarkRead}
+      markingNotificationId={markReadMutation.isPending ? markReadMutation.variables ?? null : null}
       onRefresh={() => void query.refetch()}
       onLoadMore={() => void query.fetchNextPage()}
       onOpenNotification={(notification) => {
@@ -266,6 +298,7 @@ function AuthorizedNotificationListScreen({
         if (!target || !can(target.requiredPermission)) return;
         router.push(target.href);
       }}
+      onMarkRead={(notification) => markReadMutation.mutate(notification.id)}
     />
   );
 }
