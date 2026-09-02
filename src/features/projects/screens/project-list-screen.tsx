@@ -24,6 +24,8 @@ import {
   type ProjectOverview
 } from "@/contracts/projects";
 import { useAuth } from "@/features/auth/auth-context";
+import { isPhase2CapabilityEnabled } from "@/lib/phase-2/capabilities";
+import { canUsePhase2OperationalCapability } from "@/lib/phase-2/permissions";
 import { formatTaskDate } from "@/features/tasks/presentation";
 import {
   projectsInfiniteQueryOptions,
@@ -61,11 +63,13 @@ interface ProjectListScreenViewProps {
   isPaused: boolean;
   hasNextPage: boolean;
   isFetchingNextPage: boolean;
+  canCreateProject?: boolean;
   onFilterChange(filter: ProjectFilter): void;
   onSearchChange(search: string): void;
   onRefresh(): void;
   onLoadMore(): void;
   onOpenProject(projectId: string): void;
+  onCreateProject?(): void;
 }
 
 export function ProjectListScreenView({
@@ -78,11 +82,13 @@ export function ProjectListScreenView({
   isPaused,
   hasNextPage,
   isFetchingNextPage,
+  canCreateProject = false,
   onFilterChange,
   onSearchChange,
   onRefresh,
   onLoadMore,
-  onOpenProject
+  onOpenProject,
+  onCreateProject
 }: ProjectListScreenViewProps) {
   useColorScheme();
 
@@ -122,6 +128,10 @@ export function ProjectListScreenView({
               Project summaries returned by your authenticated eFlow access.
             </Text>
           </View>
+
+          {canCreateProject && onCreateProject ? (
+            <Button label="Create project" onPress={onCreateProject} />
+          ) : null}
 
           <TextInput
             accessibilityLabel="Search projects"
@@ -323,6 +333,7 @@ export function ProjectListScreen() {
 
 function AuthorizedProjectListScreen({ userId }: { userId: string }) {
   const router = useRouter();
+  const { state } = useAuth();
   const [filter, setFilter] = React.useState<ProjectFilter>("all");
   const [search, setSearch] = React.useState("");
   const query = useInfiniteQuery(projectsInfiniteQueryOptions(userId, filter, search));
@@ -342,6 +353,15 @@ function AuthorizedProjectListScreen({ userId }: { userId: string }) {
       isPaused={query.fetchStatus === "paused"}
       hasNextPage={query.hasNextPage ?? false}
       isFetchingNextPage={query.isFetchingNextPage}
+      canCreateProject={
+        state.kind === "authorized" &&
+        canUsePhase2OperationalCapability(
+          state.profile,
+          "projects.create",
+          "projectCreate",
+          isPhase2CapabilityEnabled
+        )
+      }
       onFilterChange={setFilter}
       onSearchChange={setSearch}
       onRefresh={() => void query.refetch()}
@@ -349,6 +369,7 @@ function AuthorizedProjectListScreen({ userId }: { userId: string }) {
       onOpenProject={(projectId) =>
         router.push({ pathname: "/projects/[project-id]", params: { "project-id": projectId } })
       }
+      onCreateProject={() => router.push("/projects/create")}
     />
   );
 }

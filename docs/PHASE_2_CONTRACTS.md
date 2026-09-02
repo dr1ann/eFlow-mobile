@@ -2,12 +2,12 @@
 
 ## Status
 
-- Status: P2.1 project domain foundation and the P2.3 project portfolio/detail read slice are implemented locally; Phase 2 is not complete.
-- Recorded: August 30, 2026
-- Mobile repository baseline: `d9be92fc16287b5c5bf18258c38ca169f1200d50`
+- Status: P2.1 project domain foundation, P2.3 project portfolio/detail reads, and the guarded P2-FI project create/closeout adapter are implemented locally; Phase 2 is not complete.
+- Recorded: September 2, 2026
+- Mobile repository baseline: `b135a77e59f590b381ada919cb3a81067441acd9`
 - Recorded web audit baseline: `508aabc8881630b37a62a973645ecb0bb386e99e`
-- Latest upstream `main` inspected: `7b072123a20876940be84217dbb6af3ad8d2700f` (not adopted as the mobile baseline)
-- Source evidence: generated `src/contracts/database.types.ts`, the supplied 61-file migration archive, and the upstream comparison
+- Latest upstream `main` inspected: `042e1a5b240cf667eb3dfa69d263897686de2a04` (not adopted as the mobile baseline)
+- Source evidence: generated `src/contracts/database.types.ts`, the supplied migration archive, the inspected project-completion lifecycle migration, and the upstream comparison
 
 The mobile project now offers the following real, read-only journey:
 
@@ -19,7 +19,7 @@ Authorized user with navigation.projects
   -> RLS-backed project summary or a non-enumerating unavailable state
 ```
 
-This is a contract-first read slice. It does not prove the selected non-production project's project RLS or Realtime publication, and it does not enable any project, task, review, report, or AI mutation.
+This is a contract-first read slice plus a capability-gated project-management adapter. It does not prove the selected non-production project's project RLS, RPC, or Realtime behavior, and it does not enable any project, task, review, report, or AI mutation by default.
 
 ## Implemented mobile read contract
 
@@ -30,6 +30,8 @@ This is a contract-first read slice. It does not prove the selected non-producti
 | Project detail | Direct project-ID read maps `null` to one unavailable state. | A route parameter is never proof of access; an RLS-hidden and missing project are intentionally indistinguishable in the UI. |
 | Cache | Query keys contain authenticated user ID, status filter, and an opaque search fingerprint rather than a raw project title. Auth sign-out already clears the QueryClient. | Query keys are not authorization or durable storage. |
 | Data mapping | Project statuses map to `planning`, `active`, `on_hold`, `completed`, or `archived`; the known legacy read value `in_progress` maps to `active`. Unknown status/priority/identity data fails closed. | The mapper does not authorize or repair invalid backend rows. |
+| Project create | A self-owned planning-project form maps validated title, description, schedule, priority, and one optional initial milestone to `create_project_with_details(jsonb)`. Organization and owner are server-derived; the client does not select people. | `projectCreate` is disabled by default and the RPC must enforce scope and atomic effects. |
+| Project closeout | Readiness maps `get_project_completion_readiness(project_id)` to a narrow DTO; complete/archive use their lifecycle RPCs only. Cash blockers are replaced with a generic web-clearance message. | `projectComplete` and `projectArchive` are disabled by default; the backend rechecks readiness and lifecycle state atomically. |
 
 The exact list/detail select is:
 
@@ -48,7 +50,8 @@ No evidence paths, manager notes, personnel profile data, report contents, recom
 | Project membership | `project_members(project_id, user_id, role)` exists. | Current write policy appears potentially broader than manager-only behavior; do not enable membership mutation until a restricted atomic contract and denied probes exist. |
 | Milestones | `milestones(project_id, title, due_date, sort_order, status, ...)` exists. | Read RLS, publication, and manager-only mutation behavior need allowed/denied probes; no mobile milestone UI is enabled. |
 | Task association | `tasks.linked_project_id` and `tasks.milestone_id` are canonical UUID links; legacy `project_id`/`project_title` exist for compatibility. | Verify scope and referential rules before task creation/assignment uses either project relation. |
-| Project create | `create_project_with_details(p_payload jsonb)` exists in the migration archive. | Participant organization scope, required audit/notification behavior, rollback, and deployed RLS/RPC probes remain open. |
+| Project create | `create_project_with_details(p_payload jsonb)` exists in the migration archive; the mobile adapter intentionally creates only a server-derived self-owned project. | Required audit/notification behavior, rollback, and deployed RLS/RPC probes remain open. |
+| Project completion | `get_project_completion_readiness`, `complete_project`, and `archive_completed_project` appear in generated types and the inspected lifecycle migration. | Allowed/denied manager probes, project RLS behavior, structured blocker response, and deployment confirmation remain open. |
 | Project edit | Current web behavior uses direct writes plus separate audit calls. | An atomic authorized update contract with stale-state handling, audit, required notification, and rollback must be deployed before mobile editing. |
 
 ## Explicitly unavailable actions
@@ -57,10 +60,10 @@ The following remain disabled or unimplemented until the stated server contract 
 
 | Action | Required before implementation |
 | --- | --- |
-| Create project | Hardened and identity-tested `create_project_with_details` behavior, including organization-scoped owner/member validation and transaction side effects. |
+| Enable project create | Identity-tested `create_project_with_details` behavior, including server-derived organization/owner scope and transaction side effects; then add `projectCreate` to the non-production capability allow-list. |
 | Edit project | Approved atomic project-field update RPC. |
 | Change members or milestones | Separate approved atomic manager-only contracts and RLS probes. |
-| Archive or permanently delete project | Approved lifecycle and destructive-action contract; out of the current mobile slice. |
+| Enable complete/archive project | Record allowed/denied lifecycle probes for manager, ordinary member, unrelated Department Head, inactive account, Assistant Head, and Super Admin; then enable `projectComplete` and `projectArchive` independently. Permanently delete remains out of scope. |
 | Create/assign/schedule tasks | Hardened atomic task create/assign contracts, task deadline RPC, and identity-based RLS/RPC probes. |
 | Department workload, attention, and reports | Approved minimal aggregate/view/RPC DTOs, metric definitions, pagination, and privacy probes. |
 | Realtime project refresh | Verified publication and RLS event behavior, including duplicate/reconnect/cleanup tests. |
@@ -70,7 +73,7 @@ The following remain disabled or unimplemented until the stated server contract 
 
 - Department Head is the intended Phase 2 management actor. The `navigation.projects` permission makes the read UI available only where the effective-permission source allows it.
 - Assistant Head operational scope is not approved for mobile. It must remain an explicit backend/product decision rather than an inferred alias.
-- Super Admin project and task operational mutations are not allowed by the Phase 2 plan. The current client-wide Super Admin permission shortcut must be reconciled with deployed trigger/policy behavior before any mutation route is introduced.
+- Super Admin project and task operational mutations are not allowed by the Phase 2 plan. The Phase 2 operational guard now explicitly denies Super Admin client mutation routes even if the general permission resolver grants broad visibility; deployed triggers/policies remain authoritative.
 - Project membership is not a grant to change project membership, milestones, or other management data.
 
 ## Required non-production probes

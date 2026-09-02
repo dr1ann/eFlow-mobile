@@ -1,4 +1,5 @@
 import {
+  projectCompletionReadinessQueryOptions,
   projectDetailQueryOptions,
   projectsInfiniteQueryOptions
 } from "@/features/projects/query-options";
@@ -16,5 +17,14 @@ describe("project query options", () => {
   it("uses a stable detail key for an RLS-backed project read", () => {
     const projectId = "11111111-1111-4111-8111-111111111111";
     expect(projectDetailQueryOptions(projectId).queryKey).toEqual(queryKeys.projects.detail(projectId));
+  });
+
+  it("keeps completion readiness separate from the project summary cache", () => {
+    const projectId = "11111111-1111-4111-8111-111111111111";
+    expect(projectCompletionReadinessQueryOptions(projectId).queryKey).toEqual([
+      "projects",
+      "completion-readiness",
+      projectId
+    ]);
   });
 });

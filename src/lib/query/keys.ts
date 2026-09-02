@@ -45,7 +45,9 @@ export const queryKeys = {
   projects: {
     feed: (userId: string, filter: string, searchKey: string) =>
       ["projects", "feed", userId, filter, searchKey] as const,
-    detail: (projectId: string) => ["projects", "detail", projectId] as const
+    detail: (projectId: string) => ["projects", "detail", projectId] as const,
+    completionReadiness: (projectId: string) =>
+      ["projects", "completion-readiness", projectId] as const
   },
   discussions: {
     task: (taskId: string, page: number) => ["discussions", "task", taskId, page] as const

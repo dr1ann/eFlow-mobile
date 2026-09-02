@@ -10,11 +10,18 @@ import {
   type ProjectOverview
 } from "@/contracts/projects";
 import { projectDetailQueryOptions } from "@/features/projects/query-options";
+import { ProjectLifecyclePanel } from "@/features/projects/screens/project-lifecycle-panel";
 import { formatTaskDate } from "@/features/tasks/presentation";
 import { colors } from "@/theme/colors";
 import { tokens } from "@/theme/tokens";
 
-export function ProjectDetailView({ project }: { project: ProjectOverview }) {
+export function ProjectDetailView({
+  project,
+  lifecycle
+}: {
+  project: ProjectOverview;
+  lifecycle?: React.ReactNode;
+}) {
   useColorScheme();
 
   return (
@@ -39,10 +46,12 @@ export function ProjectDetailView({ project }: { project: ProjectOverview }) {
         <ProjectDetailValue label="Last updated" value={formatTaskDate(project.updatedAt)} />
       </ProjectDetailSection>
 
-      <StatusNotice>
-        Members, milestones, work rollups, activity, and project changes stay unavailable until their
-        permission-scoped contracts are verified. This screen only shows the authorized project summary.
-      </StatusNotice>
+      {lifecycle ?? (
+        <StatusNotice>
+          Members, milestones, work rollups, activity, and project changes stay unavailable until their
+          permission-scoped contracts are verified. This screen only shows the authorized project summary.
+        </StatusNotice>
+      )}
     </AppScreen>
   );
 }
@@ -122,5 +131,5 @@ export function ProjectDetailScreen({ projectId }: { projectId: string }) {
     );
   }
 
-  return <ProjectDetailView project={query.data} />;
+  return <ProjectDetailView project={query.data} lifecycle={<ProjectLifecyclePanel project={query.data} />} />;
 }
