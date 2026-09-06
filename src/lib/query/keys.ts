@@ -32,7 +32,10 @@ export const queryKeys = {
       ["reviews", "subtask-submission", subtaskId] as const
   },
   notifications: {
-    feed: (userId: string) => ["notifications", "feed", userId] as const,
+    feed: (userId: string, filter?: "all" | "unread") =>
+      filter === undefined
+        ? (["notifications", "feed", userId] as const)
+        : (["notifications", "feed", userId, filter] as const),
     list: (userId: string, page: number) => ["notifications", "list", userId, page] as const,
     unread: (userId: string) => ["notifications", "unread", userId] as const,
     detail: (userId: string, notificationId: string) =>

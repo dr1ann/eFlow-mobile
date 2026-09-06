@@ -5,6 +5,7 @@ import { Text, View } from "react-native";
 import { AppScreen } from "@/components/app-screen";
 import { Button } from "@/components/button";
 import { useAuth } from "@/features/auth/auth-context";
+import { isPhase3FixtureMode } from "@/lib/phase-3/capabilities";
 import { colors } from "@/theme/colors";
 import { tokens } from "@/theme/tokens";
 
@@ -23,6 +24,9 @@ export function MoreScreen() {
       : []),
     ...(can("navigation.announcements")
       ? [{ label: "Notices", description: "Read announcements sent to your audience.", href: "/announcements" as Href }]
+      : []),
+    ...(isPhase3FixtureMode()
+      ? [{ label: "Chat preview", description: "Try synthetic Phase 3 chat data in this development build.", href: "/messages" as Href }]
       : []),
     { label: "Settings", description: "View your account and sign out safely.", href: "/settings" as Href }
   ];

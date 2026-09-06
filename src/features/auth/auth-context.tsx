@@ -7,6 +7,7 @@ import type { PermissionKey } from "@/contracts/permissions";
 import type { AccessProfile } from "@/contracts/profile";
 import { gatewayErrorMessage } from "@/lib/gateway/errors";
 import { clearGatewayEndpointCache } from "@/lib/gateway/endpoint-resolver";
+import { clearResumableAiJobs } from "@/lib/gateway/jobs/persistence";
 import { queryKeys } from "@/lib/query/keys";
 import { readRuntimeConfig } from "@/lib/config/runtime";
 import { loadAccessProfile, SupabaseContractError } from "@/lib/supabase/access";
@@ -78,6 +79,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
     clearGatewayEndpointCache();
     clearRealtimeChannels();
     queryClient.clear();
+    // A local sign-out cannot wait on storage I/O, but no later account may
+    // inherit resumable Phase 3 job references from this session.
+    void clearResumableAiJobs().catch(() => undefined);
     setState({ kind: "signedOut" });
   }, [queryClient]);
 

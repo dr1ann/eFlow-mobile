@@ -10,6 +10,8 @@ export default function ProtectedLayout() {
     <Stack>
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="settings" options={{ title: "Settings" }} />
+      <Stack.Screen name="messages/index" options={{ title: "Chat" }} />
+      <Stack.Screen name="messages/[channel-id]" options={{ title: "Chat" }} />
       <Stack.Protected guard={canOpenPermissionRoute(state, "navigation.user_management")}>
         <Stack.Screen name="access-check" options={{ title: "Access check" }} />
       </Stack.Protected>

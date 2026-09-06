@@ -23,6 +23,10 @@ const notification = {
 } satisfies Notification;
 
 const baseProps = {
+  filter: "all" as const,
+  unreadCount: null,
+  isUnreadCountLoading: false,
+  isUnreadCountError: false,
   isLoading: false,
   isRefreshing: false,
   isError: false,
@@ -31,11 +35,18 @@ const baseProps = {
   isFetchingNextPage: false,
   canOpenNotification: jest.fn(() => true),
   canMarkRead: false,
+  canMarkAllRead: false,
+  openingNotificationId: null,
   markingNotificationId: null,
+  isMarkingAllRead: false,
+  actionError: null,
+  markAllSucceeded: false,
+  onFilterChange: jest.fn(),
   onRefresh: jest.fn(),
   onLoadMore: jest.fn(),
   onOpenNotification: jest.fn(),
-  onMarkRead: jest.fn()
+  onMarkRead: jest.fn(),
+  onMarkAllRead: jest.fn()
 };
 
 describe("NotificationListScreenView", () => {
@@ -52,7 +63,7 @@ describe("NotificationListScreenView", () => {
     );
 
     expect(view.getByText("Review needed")).toBeTruthy();
-    expect(view.getByText("Unread")).toBeTruthy();
+    expect(view.getAllByText("Unread")).toHaveLength(2);
     await fireEvent.press(view.getByLabelText(/Open linked item/));
     expect(onOpenNotification).toHaveBeenCalledWith(notification);
   });
@@ -67,7 +78,7 @@ describe("NotificationListScreenView", () => {
       />
     );
 
-    expect(view.getByLabelText(/No supported destination/).props.accessibilityState).toEqual({
+    expect(view.getByLabelText(/No supported destination/).props.accessibilityState).toMatchObject({
       disabled: true
     });
   });
@@ -112,6 +123,43 @@ describe("NotificationListScreenView", () => {
     );
     await fireEvent.press(paged.getByLabelText("Load more notifications"));
     expect(onLoadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets a recipient filter, mark all, and see truthful action feedback", async () => {
+    const onFilterChange = jest.fn();
+    const onMarkAllRead = jest.fn();
+    const view = await render(
+      <NotificationListScreenView
+        {...baseProps}
+        notifications={[notification]}
+        unreadCount={2}
+        canMarkRead
+        canMarkAllRead
+        markAllSucceeded
+        onFilterChange={onFilterChange}
+        onMarkAllRead={onMarkAllRead}
+      />
+    );
+
+    expect(view.getByLabelText("2 unread notifications")).toBeTruthy();
+    await fireEvent.press(view.getByLabelText("Filter notifications by Unread"));
+    await fireEvent.press(view.getByLabelText("Mark all read"));
+    expect(onFilterChange).toHaveBeenCalledWith("unread");
+    expect(onMarkAllRead).toHaveBeenCalledTimes(1);
+    expect(view.getByText(/New events received while this was processing/i)).toBeTruthy();
+  });
+
+  it("shows a safe action error without hiding the inbox", async () => {
+    const view = await render(
+      <NotificationListScreenView
+        {...baseProps}
+        notifications={[notification]}
+        actionError="This notification is no longer available."
+      />
+    );
+
+    expect(view.getByText("This notification is no longer available.")).toBeTruthy();
+    expect(view.getByText("Review needed")).toBeTruthy();
   });
 
   it("deduplicates rows received again after pagination or refresh", () => {

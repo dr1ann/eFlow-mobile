@@ -5,6 +5,8 @@ import { queryKeys } from "@/lib/query/keys";
 
 import {
   NOTIFICATION_PAGE_SIZE,
+  type NotificationFilter,
+  countUnreadNotifications,
   getNotificationForRecipient,
   listNotifications
 } from "./api/notifications-api";
@@ -14,12 +16,12 @@ export interface NotificationFeedPage {
   nextPage: number | null;
 }
 
-export function notificationsInfiniteQueryOptions(userId: string) {
+export function notificationsInfiniteQueryOptions(userId: string, filter: NotificationFilter = "all") {
   return infiniteQueryOptions({
-    queryKey: queryKeys.notifications.feed(userId),
+    queryKey: queryKeys.notifications.feed(userId, filter),
     initialPageParam: 0,
     queryFn: async ({ pageParam, signal }): Promise<NotificationFeedPage> => {
-      const notifications = await listNotifications(userId, { page: pageParam, signal });
+      const notifications = await listNotifications(userId, { page: pageParam, filter, signal });
       return {
         items: notifications,
         nextPage: notifications.length === NOTIFICATION_PAGE_SIZE ? pageParam + 1 : null
@@ -27,6 +29,14 @@ export function notificationsInfiniteQueryOptions(userId: string) {
     },
     getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: 30_000
+  });
+}
+
+export function notificationUnreadQueryOptions(userId: string) {
+  return queryOptions({
+    queryKey: queryKeys.notifications.unread(userId),
+    queryFn: ({ signal }) => countUnreadNotifications(userId, signal),
+    staleTime: 15_000
   });
 }
 

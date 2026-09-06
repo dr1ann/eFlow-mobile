@@ -1,6 +1,7 @@
 import {
   NOTIFICATION_PAGE_SIZE,
   NOTIFICATION_SELECT,
+  countUnreadNotifications,
   getNotificationForRecipient,
   listNotifications,
   markAllNotificationsRead,
@@ -81,6 +82,24 @@ describe("notification read API", () => {
     expect(query.range).toHaveBeenCalledWith(NOTIFICATION_PAGE_SIZE, NOTIFICATION_PAGE_SIZE * 2 - 1);
   });
 
+  it("filters unread rows and counts them on the server without downloading their metadata", async () => {
+    const query = createQuery({ data: [notificationRow], error: null });
+    mockFrom.mockReturnValue(query);
+
+    await expect(listNotifications(ids.user, { page: 0, filter: "unread" })).resolves.toHaveLength(1);
+    expect(query.eq).toHaveBeenLastCalledWith("read", false);
+
+    const countQuery = createQuery({ data: null, count: 2, error: null });
+    mockFrom.mockReturnValue(countQuery);
+    const controller = new AbortController();
+
+    await expect(countUnreadNotifications(ids.user, controller.signal)).resolves.toBe(2);
+    expect(countQuery.select).toHaveBeenCalledWith("id", { count: "exact", head: true });
+    expect(countQuery.eq).toHaveBeenNthCalledWith(1, "user_id", ids.user);
+    expect(countQuery.eq).toHaveBeenNthCalledWith(2, "read", false);
+    expect(countQuery.abortSignal).toHaveBeenCalledWith(controller.signal);
+  });
+
   it("keeps a missing or RLS-hidden canonical notification unavailable", async () => {
     const query = createQuery({ data: null, error: null });
     mockFrom.mockReturnValue(query);
@@ -126,10 +145,11 @@ describe("notification read API", () => {
     expect(query.eq).toHaveBeenNthCalledWith(1, "id", ids.notification);
     expect(query.eq).toHaveBeenNthCalledWith(2, "user_id", ids.user);
 
-    const all = createQuery({ data: [{ id: ids.notification }], error: null });
+    const all = createQuery({ data: null, error: null });
     mockFrom.mockReturnValue(all);
-    await expect(markAllNotificationsRead(ids.user)).resolves.toBe(1);
+    await expect(markAllNotificationsRead(ids.user)).resolves.toBeUndefined();
     expect(all.eq).toHaveBeenNthCalledWith(1, "user_id", ids.user);
     expect(all.eq).toHaveBeenNthCalledWith(2, "read", false);
+    expect(all.select).not.toHaveBeenCalled();
   });
 });
