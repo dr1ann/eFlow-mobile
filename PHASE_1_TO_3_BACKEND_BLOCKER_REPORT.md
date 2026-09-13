@@ -69,7 +69,7 @@ The attached `20260831000001_task_evidence_security.sql` exactly matches the mig
 
 The teammate reports that this migration has already been applied. **Do not run it again merely for this handoff.** Verify its deployed definitions and behavior with read-only inspection and real-user API/RPC tests. The repository and attached handoff are evidence of source work, not by themselves a deployment receipt.
 
-Budget, funding, petty-cash, cash-release, and receipt workflows remain deferred to Phase 4 or later. The new cash-release work in web commit `042e1a5b` does not count toward Phase 1, Phase 2, or Phase 3 mobile completion.
+Budget, funding, petty-cash, cash-release, and receipt workflows remain deferred. The September 6 [capstone sequence](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md) assigns Phases 4–9 to operational completion; finance has no assigned phase. The new cash-release work in web commit `042e1a5b` does not count toward Phase 1, Phase 2, or Phase 3 mobile completion.
 
 ## Executive verdict
 
@@ -485,7 +485,7 @@ Phase 2 is backend-ready when:
 - P2-B01 through P2-B07 pass for the non-AI project/report slice.
 - P2-B08 passes before AI recommendations are enabled.
 - All adopted RPC/view/gateway contracts are versioned and represented in generated types.
-- Financial fields remain excluded or safely redacted according to the Phase 4+ deferral.
+- Financial fields remain excluded or safely redacted according to the finance deferral beyond the capstone sequence.
 
 ## Phase 3 — Notifications, push, chat, AI briefs, and proposal import blockers
 
@@ -583,7 +583,7 @@ Provide:
 - One explicit, authorized, idempotent, atomic commit operation that creates the approved project/task hierarchy and returns stable IDs.
 - Full rollback on validation, authorization, audit, notification, or hierarchy-creation failure.
 
-AI output remains a draft. It cannot commit itself. Operational budget, funding, petty-cash, receipt, or allocation fields must be rejected or retained as unresolved non-operational draft text until a future Phase 4+ contract explicitly supports them.
+AI output remains a draft. It cannot commit itself. Operational budget, funding, petty-cash, receipt, or allocation fields must be rejected or retained as unresolved non-operational draft text until a future separately approved financial contract explicitly supports them.
 
 ### P3-B06 — Define private report export if selected
 

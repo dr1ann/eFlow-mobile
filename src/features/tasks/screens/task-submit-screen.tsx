@@ -78,12 +78,22 @@ export function TaskSubmitScreen({ taskId }: { taskId: string }) {
         <Text style={{ color: colors.secondaryLabel, fontSize: tokens.type.body }}>{taskQuery.data.title}</Text>
       </View>
       {!readiness.canSubmit ? <StatusNotice tone="warning">{readiness.approvedSubtasks} of {readiness.totalSubtasks} subtasks are approved. Every subtask must be approved before this task can be submitted.</StatusNotice> : null}
-      {!canSubmit ? <StatusNotice tone="warning">Only the effective Task Lead can submit an in-progress task that is ready for review.</StatusNotice> : <>
+      {!canSubmit ? <StatusNotice tone="warning">
+        {taskQuery.data.status === "changes_requested"
+          ? "Resume this task before submitting corrected evidence for review."
+          : "Only the effective Task Lead can submit an in-progress task that is ready for review."}
+      </StatusNotice> : <>
         <SubmissionNote value={note} onChangeText={setNote} />
         <EvidencePickerPreview selectedAssets={assets} onSelectedAssetsChange={setAssets} maximumFiles={rulesQuery.data.maximumFilesPerSubmission} submissionMode />
+        {!note.trim() ? <StatusNotice tone="warning">Add a completion note before submitting this task.</StatusNotice> : null}
         <StatusNotice>Task evidence is optional. Any selected file must pass the same private server rules.</StatusNotice>
         {mutation.error ? <StatusNotice tone="danger">{submissionFailureMessage(mutation.error)}</StatusNotice> : null}
-        <Button label="Submit task for review" loading={mutation.isPending} onPress={submit} />
+        <Button
+          label="Submit task for review"
+          loading={mutation.isPending}
+          disabled={!note.trim()}
+          onPress={submit}
+        />
       </>}
     </ScrollView>
   );

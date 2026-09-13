@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@testing-library/react-native";
 
 import type { Subtask } from "@/contracts/subtasks";
-import type { Task } from "@/contracts/tasks";
+import type { Task, TaskSubmission } from "@/contracts/tasks";
 import { TaskDetailView } from "@/features/tasks/screens/task-detail-screen";
 
 const task = {
@@ -52,6 +52,37 @@ const subtask = {
   updatedAt: null
 } satisfies Subtask;
 
+const submissions = [
+  {
+    id: "33333333-3333-4333-8333-333333333333",
+    taskId: task.id,
+    version: 2,
+    note: "Corrected figures and attached reconciliation.",
+    status: "approved",
+    submitterId: "44444444-4444-4444-8444-444444444444",
+    submitterName: "Task Lead",
+    submittedAt: "2026-09-06T10:15:00.000Z",
+    decidedAt: "2026-09-06T11:00:00.000Z",
+    decidedBy: "55555555-5555-4555-8555-555555555555",
+    decidedByName: "Department Head",
+    decisionFeedback: "All corrections are complete."
+  },
+  {
+    id: "66666666-6666-4666-8666-666666666666",
+    taskId: task.id,
+    version: 1,
+    note: "Initial report.",
+    status: "changes_requested",
+    submitterId: "44444444-4444-4444-8444-444444444444",
+    submitterName: "Task Lead",
+    submittedAt: "2026-09-05T10:15:00.000Z",
+    decidedAt: "2026-09-05T11:00:00.000Z",
+    decidedBy: "55555555-5555-4555-8555-555555555555",
+    decidedByName: "Department Head",
+    decisionFeedback: "Please reconcile the figures."
+  }
+] satisfies TaskSubmission[];
+
 describe("TaskDetailView", () => {
   it("renders requirements and opens a visible subtask", async () => {
     const onOpenSubtask = jest.fn();
@@ -71,5 +102,44 @@ describe("TaskDetailView", () => {
     expect(view.getByText(/Evidence remains private/i)).toBeTruthy();
     await fireEvent.press(view.getByLabelText(/Open Collect source figures/));
     expect(onOpenSubtask).toHaveBeenCalledWith(subtask.id);
+  });
+
+  it("keeps reviewed attempts and feedback visible in version order", async () => {
+    const view = await render(
+      <TaskDetailView
+        task={task}
+        subtasks={[]}
+        subtasksLoading={false}
+        subtasksError={false}
+        submissions={submissions}
+        onOpenSubtask={jest.fn()}
+        onRetrySubtasks={jest.fn()}
+      />
+    );
+
+    expect(view.getByText("Corrected figures and attached reconciliation.")).toBeTruthy();
+    expect(view.getByText("Please reconcile the figures.")).toBeTruthy();
+    expect(view.getByText("Version 2 · Approved")).toBeTruthy();
+    expect(view.getByText("Version 1 · Changes requested")).toBeTruthy();
+    expect(view.getByText(/Approved by Department Head/)).toBeTruthy();
+  });
+
+  it("makes parent rework an explicit resume step before a new submission", async () => {
+    const view = await render(
+      <TaskDetailView
+        task={{ ...task, status: "changes_requested" }}
+        subtasks={[]}
+        subtasksLoading={false}
+        subtasksError={false}
+        canStartTask
+        canSubmitTask={false}
+        onOpenSubtask={jest.fn()}
+        onRetrySubtasks={jest.fn()}
+        onStartTask={jest.fn()}
+      />
+    );
+
+    expect(view.getByLabelText("Resume work")).toBeTruthy();
+    expect(view.queryByLabelText("Submit task for review")).toBeNull();
   });
 });

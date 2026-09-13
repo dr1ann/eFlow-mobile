@@ -33,7 +33,7 @@ The full-integration target covers the four main Phase 3 journeys already descri
 
 A text-only chat milestone or proposal draft-only milestone is useful progress, but it does not satisfy the full corresponding journey.
 
-Budget, funding decisions, petty cash, receipts, liquidation, and financial mutations remain **Phase 4 or later**. Proposal import cannot silently reintroduce them. Audio/video calls, direct messaging, broad contact discovery, advanced moderation, desktop governance authoring, and full manual work-plan creation are outside this plan. Work templates, productivity/performance views, and native report export remain separately approved candidates; this plan does not automatically select them.
+Budget, funding decisions, petty cash, receipts, liquidation, and financial mutations remain **deferred beyond the capstone sequence, with no assigned phase**. The September 6 Phases 4–9 plan supersedes the old finance phase placeholder. Proposal import cannot silently reintroduce finance. Audio/video calls, direct messaging, broad contact discovery, advanced moderation, desktop governance authoring, and full manual work-plan creation are outside this plan. Work templates, productivity/performance views, and native report export remain separately approved candidates; this plan does not automatically select them.
 
 Ordinary tasks, projects, and reviews must remain usable when push delivery or AI is unavailable.
 
@@ -67,7 +67,7 @@ The `508aabc..042e1a5` comparison adds the task evidence, cash-release override,
 | `pdfTextExtractor.ts` uses browser `File` and `pdfjs-dist`. | Server extraction/OCR and a typed decomposition job are separate integration requirements. |
 | Collaboration migrations define private `proposal-drafts` Storage, draft/revision/review operations, and `commit_collaboration_draft(p_draft_id, p_revision_id)`. | Build around these real contracts after checking source association, cleanup, revision conflicts, permissions, and final side effects. |
 | `publish_department_proposal(p_draft_id)` finalizes the latest working snapshot for owner-only department plans. External collaboration has separate review requirements. | Do not invent a mandatory external approval for department-only drafts or let this one-argument API publish an unseen concurrently changed snapshot. |
-| The latest source `commit_single_department_proposal_budget` in `20260824000007_task_budget_daily_petty_cash_workflow.sql` requires a funding schedule and locked owner budget, then writes commitments and potentially allocations/ledger rows. Even no-cost choices still pass through the commitment path. | Full mobile proposal commit has a concrete conflict with the Phase 4 finance deferral. It stays gated until the backend supplies a supported non-financial commit path with verified side effects, or the product scope is explicitly revised. Do not fabricate no-cost values. |
+| The latest source `commit_single_department_proposal_budget` in `20260824000007_task_budget_daily_petty_cash_workflow.sql` requires a funding schedule and locked owner budget, then writes commitments and potentially allocations/ledger rows. Even no-cost choices still pass through the commitment path. | Full mobile proposal commit has a concrete conflict with the finance deferral. It stays gated until the backend supplies a supported non-financial commit path with verified side effects, or the product scope is explicitly revised. Do not fabricate no-cost values. |
 | Revision save/autosave signatures do not expose an expected revision/version argument in the inspected source. | Detecting changes with a client re-fetch is useful UX but not atomic conflict protection. Require a compare-and-save contract or verified equivalent before claiming concurrent draft editing is safe. |
 | Legacy `commitProposalDrafts.ts` loops over project/task creations. | Do not use it for mobile import; partial hierarchy creation is not an atomic commit. |
 
@@ -408,7 +408,7 @@ Phase 3 full integration is complete only when:
 - [ ] Standing chat has authorized history, send/read state, edits, reactions, private attachments, and revocation/reconnect behavior.
 - [ ] Management briefs use real scoped reports and typed, authorized, recoverable jobs with clearly advisory results.
 - [ ] Proposal source processing is private/server-side; saved drafts, concurrency, approval routing and explicit atomic commit satisfy the actual contract.
-- [ ] Proposal commits comply with the Phase 4 finance exclusion; draft-only/web-handoff behavior remains labeled partial until this is resolved.
+- [ ] Proposal commits comply with the finance exclusion; draft-only/web-handoff behavior remains labeled partial until this is resolved.
 - [ ] Each sensitive operation passes at least one allowed and one denied identity case, plus its relevant inactive/revoked/cross-scope cases.
 - [ ] Core work continues through AI/push outages and no sensitive operation is silently replayed offline.
 - [ ] Applicable targeted/full checks, native exports, and device acceptance are recorded honestly.

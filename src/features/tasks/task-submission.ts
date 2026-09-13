@@ -22,6 +22,9 @@ export interface SubmitTaskEvidenceInput {
 
 /** Parent evidence is optional, but each selected file must meet server rules. */
 export async function submitTaskEvidence(input: SubmitTaskEvidenceInput): Promise<void> {
+  const note = input.note.trim();
+  if (!note) throw new Error("A completion note is required.");
+
   const validation = validateEvidenceAssets(input.assets, input.rules);
   if (validation.issues.length > 0) {
     throw new Error("Review each evidence file's type, size, name, and count before submitting.");
@@ -45,7 +48,7 @@ export async function submitTaskEvidence(input: SubmitTaskEvidenceInput): Promis
     }
     await submitTaskForReview(
       input.taskId,
-      createTaskSubmissionPayload(submissionId, input.note, attachments)
+      createTaskSubmissionPayload(submissionId, note, attachments)
     );
   } catch (error) {
     if (uploadedPaths.length > 0 && mayCleanUpAfterSubmissionFailure(error)) {

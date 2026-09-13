@@ -1,4 +1,5 @@
 import { fetch } from "expo/fetch";
+import * as Linking from "expo-linking";
 
 import {
   parseEvidenceRules,
@@ -154,4 +155,40 @@ export async function createTaskEvidenceSignedUrl(
     .createSignedUrl(filePath, rules.recommendedSignedUrlSeconds);
   if (error || !data?.signedUrl) throw toSupabaseUserError(error ?? new Error("Missing signed URL."));
   return data.signedUrl;
+}
+
+export class EvidenceOpeningError extends Error {
+  constructor(
+    readonly kind: "cancelled" | "unavailable"
+  ) {
+    super(
+      kind === "cancelled"
+        ? "Opening the evidence was cancelled. Try again when you are ready."
+        : "We could not open this evidence file. Try again."
+    );
+    this.name = "EvidenceOpeningError";
+  }
+}
+
+function isEvidenceOpeningCancellation(error: unknown): boolean {
+  return error instanceof Error && (
+    error.name === "AbortError" || /\bcancel(?:led|ed)?\b/i.test(error.message)
+  );
+}
+
+/**
+ * Signs and opens private evidence only when the user requests it. The signed
+ * URL stays within this call and is never stored in query state or persistence.
+ */
+export async function openTaskEvidence(filePath: string): Promise<void> {
+  try {
+    const rules = await getTaskEvidenceRules();
+    const signedUrl = await createTaskEvidenceSignedUrl(rules, filePath);
+    await Linking.openURL(signedUrl);
+  } catch (error) {
+    if (error instanceof EvidenceOpeningError) throw error;
+    throw new EvidenceOpeningError(
+      isEvidenceOpeningCancellation(error) ? "cancelled" : "unavailable"
+    );
+  }
 }

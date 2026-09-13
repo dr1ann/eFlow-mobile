@@ -38,6 +38,9 @@ function validationMessage(input: SubmitSubtaskEvidenceInput): string | null {
 export async function submitSubtaskEvidence(
   input: SubmitSubtaskEvidenceInput
 ): Promise<void> {
+  const note = input.note.trim();
+  if (!note) throw new EvidenceValidationError("A completion note is required.");
+
   const invalid = validationMessage(input);
   if (invalid) throw new EvidenceValidationError(invalid);
 
@@ -59,7 +62,7 @@ export async function submitSubtaskEvidence(
     }
     await submitSubtaskForReview(
       input.subtaskId,
-      createSubtaskSubmissionPayload(submissionId, input.note, attachments)
+      createSubtaskSubmissionPayload(submissionId, note, attachments)
     );
   } catch (error) {
     if (uploadedPaths.length > 0 && mayCleanUpAfterSubmissionFailure(error)) {

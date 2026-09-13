@@ -67,15 +67,23 @@ export function SubtaskSubmitScreen({ subtaskId }: { subtaskId: string }) {
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: tokens.space.lg, gap: tokens.space.lg }}>
       <View style={{ gap: tokens.space.xs }}>
-        <Text style={{ color: colors.label, fontSize: tokens.type.display, fontWeight: "800" }}>Submit subtask</Text>
+        <Text style={{ color: colors.label, fontSize: tokens.type.display, fontWeight: "800" }}>
+          {subtaskQuery.data.status === "changes_requested" ? "Resubmit subtask" : "Submit subtask"}
+        </Text>
         <Text style={{ color: colors.secondaryLabel, fontSize: tokens.type.body }}>{subtaskQuery.data.title}</Text>
       </View>
       {!canSubmit ? <StatusNotice tone="warning">Only an assigned contributor can submit this editable subtask.</StatusNotice> : <>
         <SubmissionNote value={note} onChangeText={setNote} />
         <EvidencePickerPreview selectedAssets={assets} onSelectedAssetsChange={setAssets} maximumFiles={rulesQuery.data.maximumFilesPerSubmission} submissionMode />
+        {!note.trim() ? <StatusNotice tone="warning">Add a completion note before submitting this subtask.</StatusNotice> : null}
         {mutation.error ? <StatusNotice tone="danger">{submissionFailureMessage(mutation.error)}</StatusNotice> : null}
         <StatusNotice>Submitting is online-only. The reviewer and final evidence state are decided by the server.</StatusNotice>
-        <Button label="Submit for review" loading={mutation.isPending} onPress={submit} />
+        <Button
+          label={subtaskQuery.data.status === "changes_requested" ? "Resubmit for review" : "Submit for review"}
+          loading={mutation.isPending}
+          disabled={!note.trim()}
+          onPress={submit}
+        />
       </>}
     </ScrollView>
   );

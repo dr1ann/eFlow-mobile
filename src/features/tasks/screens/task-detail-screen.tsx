@@ -7,7 +7,9 @@ import { AppScreen } from "@/components/app-screen";
 import { Button } from "@/components/button";
 import { StatusNotice } from "@/components/status-notice";
 import { subtaskStatusLabel, type Subtask } from "@/contracts/subtasks";
-import { taskStatusLabel, type Task } from "@/contracts/tasks";
+import { taskStatusLabel, type Task, type TaskSubmission } from "@/contracts/tasks";
+import { SubmissionHistory } from "@/features/reviews/components/submission-history";
+import { getCurrentTaskReviewSubmission } from "@/features/reviews/submission-selection";
 import { subtasksByTaskQueryOptions } from "@/features/subtasks/query-options";
 import {
   taskDetailQueryOptions,
@@ -30,6 +32,9 @@ interface TaskDetailViewProps {
   subtasks: readonly Subtask[];
   subtasksLoading: boolean;
   subtasksError: boolean;
+  submissions?: readonly TaskSubmission[];
+  submissionsLoading?: boolean;
+  submissionsError?: boolean;
   canStartTask?: boolean;
   canSubmitTask?: boolean;
   canReviewTask?: boolean;
@@ -38,6 +43,7 @@ interface TaskDetailViewProps {
   startError?: string | null;
   onOpenSubtask(subtaskId: string): void;
   onRetrySubtasks(): void;
+  onRetrySubmissions?(): void;
   onStartTask?(): void;
   onSubmitTask?(): void;
   onReviewTask?(): void;
@@ -49,6 +55,9 @@ export function TaskDetailView({
   subtasks,
   subtasksLoading,
   subtasksError,
+  submissions = [],
+  submissionsLoading = false,
+  submissionsError = false,
   canStartTask = false,
   canSubmitTask = false,
   canReviewTask = false,
@@ -57,6 +66,7 @@ export function TaskDetailView({
   startError = null,
   onOpenSubtask,
   onRetrySubtasks,
+  onRetrySubmissions,
   onStartTask,
   onSubmitTask,
   onReviewTask,
@@ -93,7 +103,11 @@ export function TaskDetailView({
           {task.feedback ? <StatusNotice tone="warning">{task.feedback}</StatusNotice> : null}
 
           {canStartTask && onStartTask ? (
-            <Button label="Start work" loading={startingTask} onPress={onStartTask} />
+            <Button
+              label={task.status === "changes_requested" ? "Resume work" : "Start work"}
+              loading={startingTask}
+              onPress={onStartTask}
+            />
           ) : null}
           {canSubmitTask && onSubmitTask ? <Button label="Submit task for review" onPress={onSubmitTask} /> : null}
           {canReviewTask && onReviewTask ? <Button label="Review task submission" onPress={onReviewTask} /> : null}
@@ -143,6 +157,14 @@ export function TaskDetailView({
           <StatusNotice tone="warning">
             Evidence remains private. Actions appear only after their individual live-operation checks are enabled; server rules still decide access.
           </StatusNotice>
+
+          <SubmissionHistory
+            submissions={submissions}
+            isLoading={submissionsLoading}
+            isError={submissionsError}
+            emptyMessage="No task attempts have been submitted yet."
+            onRetry={onRetrySubmissions}
+          />
 
           <Text selectable style={{ color: colors.label, fontSize: tokens.type.title, fontWeight: "800" }}>
             Subtasks
@@ -309,8 +331,9 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
     isPhase1CapabilityEnabled("evidenceRules") &&
     isTaskLead(taskQuery.data, state.profile.id) &&
     taskQuery.data.status === "in_progress" &&
+    subtasksQuery.isSuccess &&
     (subtasksQuery.data ?? []).every((subtask) => subtask.status === "completed" && subtask.isCompleted);
-  const pendingSubmission = submissionsQuery.data?.find((submission) => submission.status === "pending");
+  const pendingSubmission = getCurrentTaskReviewSubmission(submissionsQuery.data);
   const canReviewTask =
     isPhase1CapabilityEnabled("taskDecision") &&
     pendingSubmission !== undefined &&
@@ -327,6 +350,9 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
       subtasks={subtasksQuery.data ?? []}
       subtasksLoading={subtasksQuery.isLoading}
       subtasksError={subtasksQuery.isError}
+      submissions={submissionsQuery.data ?? []}
+      submissionsLoading={submissionsQuery.isLoading}
+      submissionsError={submissionsQuery.isError}
       canStartTask={canStartTask}
       canSubmitTask={canSubmitTask}
       canReviewTask={canReviewTask}
@@ -334,6 +360,7 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
       startingTask={startTaskMutation.isPending}
       startError={startError}
       onRetrySubtasks={() => void subtasksQuery.refetch()}
+      onRetrySubmissions={() => void submissionsQuery.refetch()}
       onStartTask={() => startTaskMutation.mutate(taskId)}
       onSubmitTask={() =>
         router.push({ pathname: "/tasks/[task-id]/submit", params: { "task-id": taskId } })

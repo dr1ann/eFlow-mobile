@@ -1,7 +1,9 @@
 import {
   claimAndRemoveTaskEvidence,
   createTaskEvidenceSignedUrl,
+  EvidenceOpeningError,
   getTaskEvidenceRules,
+  openTaskEvidence,
   readEvidenceUri,
   uploadTaskEvidence
 } from "@/features/subtasks/evidence-storage";
@@ -10,6 +12,7 @@ const mockRpc = jest.fn();
 const mockUpload = jest.fn();
 const mockRemove = jest.fn();
 const mockCreateSignedUrl = jest.fn();
+const mockOpenUrl = jest.fn();
 
 jest.mock("@/lib/supabase/client", () => ({
   getSupabaseClient: () => ({
@@ -22,6 +25,10 @@ jest.mock("@/lib/supabase/client", () => ({
 
 jest.mock("expo/fetch", () => ({
   fetch: jest.fn()
+}));
+
+jest.mock("expo-linking", () => ({
+  openURL: (...args: unknown[]) => mockOpenUrl(...args)
 }));
 
 const rules = {
@@ -87,5 +94,52 @@ describe("private evidence storage", () => {
     const dataUri = "data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsOfCjEgMCBvYmoKPDwKL1R5cGUgL0NhdGFsb2cKL1BhZ2VzIDIgMCBSCj4+CmVuZG9iag==";
     const buffer = await readEvidenceUri(dataUri);
     expect(buffer.byteLength).toBe(67);
+  });
+
+  it("creates a fresh private signed URL only when opening the selected evidence", async () => {
+    mockRpc.mockResolvedValue({ data: {
+      bucketId: "task-attachments",
+      maxFileBytes: 100,
+      maxFilesPerSubmission: 10,
+      recommendedSignedUrlSeconds: 300,
+      orphanMinimumAgeHours: 24,
+      allowedMimeTypes: ["application/pdf"]
+    }, error: null });
+    mockCreateSignedUrl
+      .mockResolvedValueOnce({ data: { signedUrl: "https://example.test/signed-first" }, error: null })
+      .mockResolvedValueOnce({ data: { signedUrl: "https://example.test/signed-second" }, error: null });
+    mockOpenUrl.mockResolvedValue(undefined);
+
+    await openTaskEvidence("attempt/current.pdf");
+    await openTaskEvidence("attempt/current.pdf");
+
+    expect(mockCreateSignedUrl).toHaveBeenCalledTimes(2);
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(1, "https://example.test/signed-first");
+    expect(mockOpenUrl).toHaveBeenNthCalledWith(2, "https://example.test/signed-second");
+  });
+
+  it("redacts signing, unavailable-file, and cancelled-opening failures", async () => {
+    mockRpc.mockResolvedValue({ data: {
+      bucketId: "task-attachments",
+      maxFileBytes: 100,
+      maxFilesPerSubmission: 10,
+      recommendedSignedUrlSeconds: 300,
+      orphanMinimumAgeHours: 24,
+      allowedMimeTypes: ["application/pdf"]
+    }, error: null });
+    mockCreateSignedUrl.mockResolvedValue({ data: null, error: null });
+
+    await expect(openTaskEvidence("attempt/missing.pdf")).rejects.toEqual(
+      expect.objectContaining({ kind: "unavailable", message: "We could not open this evidence file. Try again." })
+    );
+    expect(mockOpenUrl).not.toHaveBeenCalled();
+
+    mockCreateSignedUrl.mockResolvedValue({ data: { signedUrl: "https://example.test/signed" }, error: null });
+    mockOpenUrl.mockRejectedValue(new Error("User cancelled the external viewer"));
+
+    await expect(openTaskEvidence("attempt/current.pdf")).rejects.toBeInstanceOf(EvidenceOpeningError);
+    await expect(openTaskEvidence("attempt/current.pdf")).rejects.toEqual(
+      expect.objectContaining({ kind: "cancelled" })
+    );
   });
 });

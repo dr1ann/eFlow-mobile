@@ -94,15 +94,15 @@ export async function listTaskSubmissions(
 
 export async function listTaskAttachments(
   taskId: string,
-  submissionId: string | null,
+  submissionId: string,
   signal?: AbortSignal
 ): Promise<readonly TaskAttachment[]> {
   let request = getSupabaseClient()
     .from("task_attachments")
     .select("*")
     .eq("task_id", taskId)
-    .order("created_at", { ascending: false });
-  if (submissionId) request = request.eq("submission_id", submissionId);
+    .order("created_at", { ascending: false })
+    .eq("submission_id", submissionId);
   const { data, error } = await (signal ? request.abortSignal(signal) : request);
 
   if (error) throw toSupabaseUserError(error);

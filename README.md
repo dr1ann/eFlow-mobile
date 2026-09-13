@@ -2,7 +2,7 @@
 
 Cross-platform eFlow client built with Expo, React Native, TypeScript, Supabase, and the authenticated eFlow control gateway.
 
-Phase 0 supplies the native shell, authentication, role and permission resolution, Supabase client, gateway health check, Realtime helpers, design tokens, and quality tooling. Phase 1 now includes a permission-gated, RLS-backed Work/task/subtask read path and local-only evidence picker preview. Evidence transfer and every workflow mutation remain disabled until task-scoped Storage security and live allowed/denied authorization are verified.
+The app includes the native foundation and guarded task/subtask execution, submission/review, notification, and project integrations. Source implementation and enabled local capabilities do not establish deployed authorization or device acceptance. The next work starts at Phase 4 in the [Phases 4–9 capstone implementation plan](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md), based on the [current readiness assessment](docs/CAPSTONE_FLOW_READINESS.md).
 
 ## What you need
 
@@ -133,6 +133,7 @@ The project reference is not a secret. Do not place server-only credentials in `
 ## References
 
 - [Mobile implementation phases](MOBILE_IMPLEMENTATION_PHASES.md)
+- [Phases 4–9 capstone implementation plan](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md)
 - [Phase 0 implementation plan](PHASE_0_IMPLEMENTATION_PLAN.md)
 - [Phase 1 implementation plan](PHASE_1_IMPLEMENTATION_PLAN.md)
 - [Phase 1 contract record](docs/PHASE_1_CONTRACTS.md)

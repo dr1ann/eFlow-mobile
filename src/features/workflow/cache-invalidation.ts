@@ -9,6 +9,7 @@ export async function invalidateTaskWorkflow(
 ): Promise<void> {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: queryKeys.tasks.detail(taskId) }),
+    queryClient.invalidateQueries({ queryKey: queryKeys.tasks.submissions(taskId, 0) }),
     queryClient.invalidateQueries({ queryKey: ["tasks", "feed"] }),
     queryClient.invalidateQueries({ queryKey: ["tasks", "leading"] }),
     queryClient.invalidateQueries({ queryKey: queryKeys.subtasks.byTask(taskId) }),

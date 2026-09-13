@@ -1,72 +1,137 @@
-import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator } from "react-native";
 
 import { AppScreen } from "@/components/app-screen";
 import { Button } from "@/components/button";
 import { StatusNotice } from "@/components/status-notice";
+import type { Task, TaskAttachment, TaskSubmission } from "@/contracts/tasks";
 import { useAuth } from "@/features/auth/auth-context";
-import { decideTaskReview } from "@/features/tasks/api/task-workflow-api";
-import { taskSubmissionsQueryOptions, taskDetailQueryOptions } from "@/features/tasks/query-options";
-import { invalidateTaskWorkflow } from "@/features/workflow/cache-invalidation";
+import { ReviewSubmissionPanel } from "@/features/reviews/components/review-submission-panel";
 import { getTaskReviewEligibility, canRequestReviewDecision } from "@/features/reviews/eligibility";
+import { getCurrentTaskReviewSubmission } from "@/features/reviews/submission-selection";
+import { decideTaskReview } from "@/features/tasks/api/task-workflow-api";
+import {
+  taskAttachmentsQueryOptions,
+  taskDetailQueryOptions,
+  taskSubmissionsQueryOptions
+} from "@/features/tasks/query-options";
+import { invalidateTaskWorkflow } from "@/features/workflow/cache-invalidation";
 import { isPhase1CapabilityEnabled } from "@/lib/phase-1/capabilities";
 import { SupabaseUserError } from "@/lib/supabase/errors";
 import { colors } from "@/theme/colors";
-import { tokens } from "@/theme/tokens";
+
+interface TaskReviewViewProps {
+  task: Pick<Task, "title" | "reviewerId" | "backupReviewerId">;
+  submission: TaskSubmission;
+  attachments: readonly TaskAttachment[];
+  attachmentsLoading: boolean;
+  attachmentsError: boolean;
+  canOpenEvidence: boolean;
+  canReview: boolean;
+  decisionPending: boolean;
+  decisionError: string | null;
+  onRetryAttachments(): void;
+  onDecide(approve: boolean, feedback: string): void;
+  onBack(): void;
+}
+
+export function TaskReviewView({ task, submission, ...props }: TaskReviewViewProps) {
+  return (
+    <ReviewSubmissionPanel
+      workKind="task"
+      workTitle={task.title}
+      submission={submission}
+      {...props}
+    />
+  );
+}
+
+function reviewError(error: unknown): string {
+  return error instanceof SupabaseUserError
+    ? error.message
+    : "We could not record this decision. Refresh to confirm the current review state.";
+}
 
 export function TaskReviewScreen({ taskId }: { taskId: string }) {
   const { state } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
   const taskQuery = useQuery(taskDetailQueryOptions(taskId));
-  const submissionsQuery = useQuery({ ...taskSubmissionsQueryOptions(taskId, 0), enabled: taskQuery.isSuccess && taskQuery.data !== null });
-  const [feedback, setFeedback] = React.useState("");
+  const submissionsQuery = useQuery({
+    ...taskSubmissionsQueryOptions(taskId, 0),
+    enabled: taskQuery.isSuccess && taskQuery.data !== null
+  });
+  const pendingSubmission = getCurrentTaskReviewSubmission(submissionsQuery.data);
+  const attachmentsQuery = useQuery({
+    ...taskAttachmentsQueryOptions(taskId, pendingSubmission?.id ?? taskId),
+    enabled: pendingSubmission !== undefined
+  });
   const mutation = useMutation({
     mutationFn: decideTaskReview,
-    onSuccess: async (_value, input) => { await invalidateTaskWorkflow(queryClient, input.taskId); }
+    onSuccess: async (updatedTask, input) => {
+      await invalidateTaskWorkflow(queryClient, input.taskId);
+      queryClient.setQueryData(taskDetailQueryOptions(input.taskId).queryKey, updatedTask);
+    }
   });
 
   if (state.kind !== "authorized") return null;
-  if (!isPhase1CapabilityEnabled("taskDecision")) return <AppScreen testID="task-review-gated"><StatusNotice tone="warning">Task review is prepared but disabled until its exact deployed checks are recorded.</StatusNotice></AppScreen>;
-  if (taskQuery.isLoading || submissionsQuery.isLoading) return <AppScreen><ActivityIndicator accessibilityLabel="Loading task review" color={colors.primary} /></AppScreen>;
-  const submission = submissionsQuery.data?.find((item) => item.status === "pending");
-  if (!taskQuery.data || !submission || taskQuery.isError || submissionsQuery.isError) return <AppScreen><StatusNotice tone="danger">This pending task review is unavailable or you do not have access to it.</StatusNotice></AppScreen>;
+  if (!isPhase1CapabilityEnabled("taskDecision")) {
+    return <AppScreen testID="task-review-gated"><StatusNotice tone="warning">Task review is prepared but disabled until its exact deployed checks are recorded.</StatusNotice></AppScreen>;
+  }
+  if (taskQuery.isLoading || submissionsQuery.isLoading) {
+    return <AppScreen><ActivityIndicator accessibilityLabel="Loading task review" color={colors.primary} /></AppScreen>;
+  }
+  if (taskQuery.isError || submissionsQuery.isError) {
+    return (
+      <AppScreen>
+        <StatusNotice tone="danger">We could not load this task review. Try again.</StatusNotice>
+        <Button
+          label="Retry task review"
+          onPress={() => {
+            void taskQuery.refetch();
+            void submissionsQuery.refetch();
+          }}
+        />
+      </AppScreen>
+    );
+  }
+  if (!taskQuery.data || !pendingSubmission) {
+    return <AppScreen><StatusNotice tone="danger">This pending task review is unavailable or you do not have access to it.</StatusNotice></AppScreen>;
+  }
 
-  const canReview = canRequestReviewDecision(getTaskReviewEligibility(taskQuery.data, submission, state.profile.id, state.profile.role));
-  const decide = (approve: boolean): void => {
-    if (!approve && !feedback.trim()) return;
-    Alert.alert(`${approve ? "Approve" : "Request changes"} task`, "This immediately records the decision through the server.", [
-      { text: "Cancel", style: "cancel" },
-      {
-        text: approve ? "Approve" : "Request changes",
-        style: approve ? "default" : "destructive",
-        onPress: () =>
-          mutation.mutate(
-            { taskId, approve, feedback },
-            {
-              onSuccess: () => {
-                router.replace({
-                  pathname: "/tasks/[task-id]",
-                  params: { "task-id": taskId }
-                });
-              }
+  const canReview = canRequestReviewDecision(
+    getTaskReviewEligibility(taskQuery.data, pendingSubmission, state.profile.id, state.profile.role)
+  );
+  const canOpenEvidence =
+    isPhase1CapabilityEnabled("evidenceRules") && isPhase1CapabilityEnabled("evidenceSignedRead");
+
+  return (
+    <TaskReviewView
+      task={taskQuery.data}
+      submission={pendingSubmission}
+      attachments={attachmentsQuery.data ?? []}
+      attachmentsLoading={attachmentsQuery.isLoading}
+      attachmentsError={attachmentsQuery.isError}
+      canOpenEvidence={canOpenEvidence}
+      canReview={canReview}
+      decisionPending={mutation.isPending}
+      decisionError={mutation.error ? reviewError(mutation.error) : null}
+      onRetryAttachments={() => void attachmentsQuery.refetch()}
+      onDecide={(approve, feedback) => {
+        mutation.mutate(
+          { taskId, approve, feedback },
+          {
+            onSuccess: () => {
+              router.replace({
+                pathname: "/tasks/[task-id]",
+                params: { "task-id": taskId }
+              });
             }
-          )
-      }
-    ]);
-  };
-
-  return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: tokens.space.lg, gap: tokens.space.lg }}>
-    <View style={{ gap: tokens.space.xs }}><Text style={{ color: colors.label, fontSize: tokens.type.display, fontWeight: "800" }}>Review task</Text><Text style={{ color: colors.secondaryLabel, fontSize: tokens.type.body }}>{taskQuery.data.title} · Version {submission.version}</Text></View>
-    <StatusNotice>Submitted by {submission.submitterName}. Evidence and prior attempts remain immutable.</StatusNotice>
-    {!canReview ? <StatusNotice tone="danger">You are not the resolved reviewer for this submission.</StatusNotice> : <>
-      <View style={{ gap: tokens.space.xs }}><Text style={{ color: colors.label, fontSize: tokens.type.caption, fontWeight: "700" }}>Feedback {"(required for changes)"}</Text><TextInput accessibilityLabel="Review feedback" value={feedback} onChangeText={setFeedback} multiline maxLength={2000} textAlignVertical="top" style={{ minHeight: 120, padding: tokens.space.md, borderRadius: tokens.radius.md, borderWidth: 1, borderColor: colors.separator, color: colors.label, backgroundColor: colors.surface }} /></View>
-      {mutation.error ? <StatusNotice tone="danger">{mutation.error instanceof SupabaseUserError ? mutation.error.message : "We could not record this decision. Refresh to confirm the current review state."}</StatusNotice> : null}
-      <Button label="Approve task" loading={mutation.isPending} onPress={() => decide(true)} />
-      <Button label="Request changes" variant="danger" disabled={!feedback.trim()} onPress={() => decide(false)} />
-    </>}
-    <Button label="Back to task" variant="secondary" onPress={() => router.back()} />
-  </ScrollView>;
+          }
+        );
+      }}
+      onBack={() => router.back()}
+    />
+  );
 }

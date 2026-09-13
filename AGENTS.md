@@ -11,7 +11,7 @@ Before planning or changing the app:
 3. Identify the current implementation phase and finish the smallest complete vertical workflow that advances it.
 4. If the work depends on the web application, compare the upstream commit with the recorded baseline before copying a contract or behavior.
 
-The mobile project is now initialized as a Git repository with an Expo scaffold, Jest test setup, quality workflow, and initial Phase 0 source code. Recheck the current state before working because this description will continue to evolve.
+The mobile project has the Expo foundation plus guarded task/subtask workflow, review, notification, and project integrations. The September 6 source assessment found missing evidence-review presentation, feedback/history, work discovery, and live/device acceptance. Follow `PHASE_4_TO_9_IMPLEMENTATION_PLAN.md` to close those gaps, starting at Phase 4; recheck workspace state before implementing.
 
 ## Project mission
 
@@ -24,6 +24,7 @@ Prioritize real employee, Team Leader, and Department Head workflows. Keep compl
 ## Canonical references
 
 - Mobile roadmap: `MOBILE_IMPLEMENTATION_PHASES.md`
+- Capstone execution plan: `PHASE_4_TO_9_IMPLEMENTATION_PLAN.md`
 - Upstream web repository: <https://github.com/Rivaly-Kun/eFlow-e-Governance-Project>
 - Audited web baseline: `508aabc8881630b37a62a973645ecb0bb386e99e`
 - Baseline recorded: August 27, 2026
@@ -61,7 +62,9 @@ Follow the phase definitions and exit criteria in the roadmap:
 3. Phase 2: Department Head operations, projects, reports, and safely queued AI recommendations.
 4. Phase 3: push, chat, AI briefs, proposal import, and other approved advanced workflows.
 
-Budget and petty-cash workflows are deferred to Phase 4 or later because the web implementation and its deployed contract are not yet stable enough to use as a mobile reference. Do not include them in Phase 3 planning, implementation, or completion claims until a future upstream audit and explicit product decision restore them to scope.
+The user requested new completion phases starting at Phase 4 on September 6, 2026: Phase 4 evidence/rework, Phase 5 work discovery/navigation, Phase 6 mobile planning/delegation, Phase 7 correctness/recovery, Phase 8 native polish/defense acceptance, and Phase 9 one optional AI operation. Use that execution sequence now; do not wait for all advanced Phase 3 work before Phase 4. Phases 0–3 retain their scope and open acceptance criteria. The first web-assisted defense can follow 4 → 5 → 7 → 8; add Phase 6 for mobile work creation and Phase 9 only when selected by the rubric.
+
+Budget and petty-cash workflows remain deferred beyond the capstone sequence with no assigned implementation phase. This supersedes the old “Phase 4 or later” finance placeholder. Do not include finance in Phase 3 or Phases 4–9 planning, implementation, or completion claims until a future stable-contract audit and explicit product decision restore it to scope.
 
 Do not pull Phase 3 complexity into the foundation unless it is genuinely required by an earlier end-to-end workflow.
 

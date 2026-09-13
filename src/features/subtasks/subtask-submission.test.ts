@@ -58,6 +58,15 @@ describe("subtask evidence submission", () => {
     expect(mockCleanupTaskEvidence).not.toHaveBeenCalled();
   });
 
+  it("rejects a blank completion note before uploading or creating an orphan", async () => {
+    await expect(submitSubtaskEvidence({ subtaskId, note: "  ", assets: [asset], rules }))
+      .rejects.toThrow("completion note");
+
+    expect(mockUploadTaskEvidence).not.toHaveBeenCalled();
+    expect(mockCleanupTaskEvidence).not.toHaveBeenCalled();
+    expect(mockSubmitSubtaskForReview).not.toHaveBeenCalled();
+  });
+
   it("claims cleanup after a confirmed server rejection", async () => {
     mockSubmitSubtaskForReview.mockRejectedValue(new SupabaseUserError("validation", "Rejected"));
 

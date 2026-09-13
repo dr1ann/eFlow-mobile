@@ -71,7 +71,8 @@ export function taskSubmissionsQueryOptions(taskId: string, page: number) {
   });
 }
 
-export function taskAttachmentsQueryOptions(taskId: string, submissionId: string | null) {
+/** Attachment reads are always bound to one immutable submission attempt. */
+export function taskAttachmentsQueryOptions(taskId: string, submissionId: string) {
   return queryOptions({
     queryKey: queryKeys.tasks.attachments(taskId, submissionId),
     queryFn: ({ signal }) => listTaskAttachments(taskId, submissionId, signal),

@@ -8,6 +8,8 @@
 - Web audit baseline: [`508aabc8881630b37a62a973645ecb0bb386e99e`](https://github.com/Rivaly-Kun/eFlow-e-Governance-Project/commit/508aabc8881630b37a62a973645ecb0bb386e99e)
 - Latest upstream `main` inspected: `042e1a5b240cf667eb3dfa69d263897686de2a04`; this is not yet the adopted mobile baseline
 - Baseline date: August 27, 2026
+- Current source-based demo assessment: [Mock capstone flow readiness, September 6, 2026](docs/CAPSTONE_FLOW_READINESS.md). This separates implemented/local-enabled actions from deployed and device acceptance; it does not change phase scope or the adopted baseline.
+- Phase 4 implementation: P4.1–P4.4 are implemented in the workspace; P4.5 still requires non-production allowed/denied workflow and installed-device evidence checks. The [Phases 4–9 implementation plan](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md) records the remaining acceptance work before Phase 5 begins.
 
 ## Scope principle
 
@@ -255,7 +257,7 @@ Phase 3 is **not complete**. The [full integration plan](PHASE_3_IMPLEMENTATION_
 - Phase 1 already added mark-one/mark-all read adapters, mark-one UI, and recipient-scoped notification Realtime invalidation behind `notificationWrites` and `phase1Realtime`. Mark-all UI, unread totals/filters, visible mutation errors, and canonical recipient re-fetch on every open remain planned. The current unconditional read-only banner also needs to reflect enabled capabilities accurately.
 - Native push registration/delivery, live standing chat, live management briefs, and proposal PDF import remain unimplemented. P3-FI-1 now includes recipient-scoped All/Unread filtering, guarded unread counts, mark-all feedback without downloading changed IDs, and canonical recipient re-fetch before opening a destination. P3-FI-3 has an opt-in development-only synthetic chat preview under More, while P3-FI-5 has shared job-state/backoff and safe identifier persistence; neither connects to a live Phase 3 endpoint.
 - Web `main` was rechecked at `042e1a5b240cf667eb3dfa69d263897686de2a04`. Chat base DDL is present, but broad channel/member source policies need reconciliation and live validation. Typed brief/PDF processing and trusted push contracts were not found in the inspected source.
-- Proposal draft/approval/commit APIs exist, but the current publication path requires task funding decisions and can create financial records. Mobile draft/source/review work can continue; final commit requires a supported non-financial server contract before full integration can be claimed. Budget and petty cash remain Phase 4+.
+- Proposal draft/approval/commit APIs exist, but the current publication path requires task funding decisions and can create financial records. Mobile draft/source/review work can continue; final commit requires a supported non-financial server contract before full integration can be claimed. Budget and petty cash remain deferred beyond the capstone sequence.
 
 Development, live integration, and release acceptance are tracked separately in [Phase 3 contracts](docs/PHASE_3_CONTRACTS.md). A missing contract blocks only its live operation. Existing Phase 1/2 device and permission checks remain regression/release requirements for the workflows that depend on them; they do not stop independent Phase 3 code. Fixture behavior is visibly development-only, production-rejected, and cannot be reported as live-tested. This implementation ran no migrations or live Phase 3 probes.
 
@@ -305,11 +307,66 @@ Development, live integration, and release acceptance are tracked separately in 
 - Sensitive actions preserve the same authorization, audit, and approval requirements as the web client.
 - Large or long-running operations survive navigation and app suspension safely.
 
-## Deferred to Phase 4 or later — budget and petty cash
+## Capstone completion sequence — Phases 4–9
 
-Budget and petty-cash workflows are explicitly excluded from Phase 3. The current web implementation and its deployed schema, RLS, RPC, Storage, lifecycle, and role behavior are not considered stable enough to serve as the authoritative mobile contract.
+The user requested that the next implementation phases start at Phase 4 on September 6, 2026. These phases finish existing Phase 0–3 gaps without resetting their status or expanding supported roles. Earlier acceptance criteria remain open until evidence satisfies them. Follow the detailed [implementation plan](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md) for slices, source references, tests, and checklists.
 
-Reconsider this scope only after a future upstream audit confirms a stable, production-backed financial workflow. A future Phase 4 or later plan may include:
+For the first web-assisted defense, implement **4 → 5 → 7 → 8** with work prepared on web. Include Phase 6 before Phase 7 when demonstrating creation-to-completion entirely on mobile. Phase 9 is optional unless required by the rubric. Begin live allowed/denied checks in Phase 4 and continue in each phase; verification is not postponed until Phase 8.
+
+## Phase 4 — Evidence review, feedback, and resubmission
+
+- Status: P4.1–P4.4 implemented September 8, 2026; P4.5 live and device acceptance remains open.
+- Goal: complete the normal online employee → Task Lead → Head review loop using the existing submission/decision adapters.
+- Scope: completion notes and attempt-specific evidence in review screens; authorized native file opening; feedback/progress/submission history; correction and resubmission; pending-decision guards.
+- Exit: actual evidence can be inspected, version 1 can be returned and corrected as version 2, eligible reviewers can approve, and forbidden reviewers/file access are denied with recorded tests.
+- Plan: [Phase 4 details](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md#phase-4--evidence-review-feedback-and-resubmission).
+- Contract notes: [Phase 4 evidence/review contract](docs/PHASE_4_CONTRACTS.md).
+
+## Phase 5 — My work, leading work, deadlines, and project navigation
+
+- Status: planned.
+- Goal: make every participant's assigned work easy to find and follow.
+- Scope: My Tasks / My Subtasks / Leading views, correct filtering/pagination, due-soon/overdue navigation, project-to-task drill-down, and guarded links to details/history.
+- Exit: contributors can find directly assigned subtasks, leads can find the work they actually lead, and all supported drill-downs/filters work across pages without exposing unauthorized records.
+- Plan: [Phase 5 details](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md#phase-5--my-work-leading-work-deadlines-and-project-navigation).
+
+## Phase 6 — Mobile task planning and delegation
+
+- Status: planned; required for an entirely mobile creation-to-completion demo, optional for the first web-assisted rehearsal.
+- Goal: create and delegate operational work on mobile.
+- Scope: Head task creation, eligible participants/Task Lead/reviewer assignment, and effective-Task-Lead subtask creation/assignment/scheduling/execution rules through verified server contracts.
+- Exit: a newly created mobile work plan enters the Phase 4 flow with correct relationships, atomic effects, and allowed/denied management checks. Project creation alone does not satisfy this phase.
+- Plan: [Phase 6 details](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md#phase-6--mobile-task-planning-and-delegation).
+
+## Phase 7 — Workflow correctness, synchronization, and recovery
+
+- Status: planned.
+- Goal: preserve accurate workflow behavior through stale data, interruptions, and actions from another client.
+- Scope: authoritative readiness and useful blockers, submission-ID reconciliation, cleanup safety, focus/reconnect refresh, scoped Realtime, review pagination, canonical notification destinations, and access-change handling.
+- Exit: the selected flow recovers after lost responses/restarts/reconnects, does not duplicate submissions or delete finalized evidence, and synchronizes between authorized clients with no offline replay of sensitive actions.
+- Plan: [Phase 7 details](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md#phase-7--workflow-correctness-synchronization-and-recovery).
+
+## Phase 8 — Native presentation and mock-defense acceptance
+
+- Status: planned; core mock-defense milestone.
+- Goal: present and rehearse the verified operational loop on the actual demonstration build/device.
+- Scope: actionable Home, accurate capability messages, integrated evidence UI, accessibility/keyboard/safe-area/file/session checks, test records, and a documented repeatable defense script.
+- Exit: the employee → Task Lead → Head cycle, notifications, session restoration, recovery, and a denied operation pass rehearsal with recorded backend/device results. State any web setup and untested-platform limitations explicitly.
+- Plan: [Phase 8 details](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md#phase-8--native-presentation-and-mock-defense-acceptance).
+
+## Phase 9 — One AI-assisted capstone extension
+
+- Status: planned; optional unless the rubric requires it.
+- Goal: demonstrate one real, permission-scoped AI operation after the core flow is dependable.
+- Scope: a confirmed typed recommendation or brief operation, existing job persistence/backoff, result review, explicit human confirmation, and outage recovery. Any assignment application depends on the verified Phase 6 mutation contract.
+- Exit: an actual authorized result is demonstrated on mobile, resumes after interruption, cannot act autonomously, and leaves ordinary work usable during an AI outage. A web AI demo or shared helper alone does not complete this mobile phase.
+- Plan: [Phase 9 details](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md#phase-9--one-ai-assisted-capstone-extension).
+
+## Deferred beyond the capstone sequence — budget and petty cash
+
+Budget and petty-cash workflows remain outside Phase 3 and Phases 4–9. They have no assigned implementation phase. This replaces the earlier “Phase 4 or later” placeholder; Phase 4 now covers evidence review and resubmission. The current financial implementation and its deployed contract still need a stable-contract audit and an explicit product decision.
+
+A future separately approved plan may include:
 
 - Department budget overview.
 - Task and subtask allocations.
@@ -318,7 +375,7 @@ Reconsider this scope only after a future upstream audit confirms a stable, prod
 - Receipt uploads and liquidation review.
 - Immutable ledger and funding-state visibility.
 
-Any future financial mutation must remain online-only, server-authoritative, auditable, and protected by verified RLS/RPC/Storage contracts. None of these items count toward Phase 3 scope or completion.
+Any future financial mutation must remain online-only, server-authoritative, auditable, and protected by verified RLS/RPC/Storage contracts. None of these items count toward Phase 3 or the Phases 4–9 capstone sequence.
 
 ## Deferred mobile scope — recommended 30%
 

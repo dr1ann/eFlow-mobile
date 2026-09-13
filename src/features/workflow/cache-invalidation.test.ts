@@ -12,6 +12,7 @@ describe("Phase 1 workflow cache invalidation", () => {
     await invalidateTaskWorkflow({ invalidateQueries }, taskId);
 
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["tasks", "detail", taskId] });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["tasks", "submissions", taskId, 0] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["subtasks", "by-task", taskId] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["reviews"] });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ["notifications"] });

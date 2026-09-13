@@ -63,7 +63,7 @@ The non-AI leadership workflow must remain usable when the gateway or AI host is
 
 ### Explicitly excluded
 
-- Budget, petty-cash, liquidation, cash-release, and other finance workflows. These remain Phase 4 or later.
+- Budget, petty-cash, liquidation, cash-release, and other finance workflows. These remain deferred beyond the capstone sequence, with no assigned implementation phase.
 - PDF or CSV report export.
 - Proposal upload, PDF extraction, and AI proposal decomposition/import.
 - Push-notification delivery, chat, calls, and general AI briefs. These remain Phase 3 concerns.

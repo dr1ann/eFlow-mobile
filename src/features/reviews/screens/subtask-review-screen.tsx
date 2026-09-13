@@ -1,23 +1,56 @@
-import React from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
-import { ActivityIndicator, Alert, ScrollView, Text, TextInput, View } from "react-native";
+import { ActivityIndicator } from "react-native";
 
 import { AppScreen } from "@/components/app-screen";
 import { Button } from "@/components/button";
 import { StatusNotice } from "@/components/status-notice";
+import type { Subtask, SubtaskSubmission, SubtaskSubmissionAttachment } from "@/contracts/subtasks";
 import { useAuth } from "@/features/auth/auth-context";
-import { decideSubtaskReview } from "@/features/subtasks/api/subtask-workflow-api";
-import { subtaskSubmissionsQueryOptions, subtaskDetailQueryOptions } from "@/features/subtasks/query-options";
-import { invalidateSubtaskWorkflow } from "@/features/workflow/cache-invalidation";
+import { ReviewSubmissionPanel } from "@/features/reviews/components/review-submission-panel";
 import { getSubtaskReviewEligibility, canRequestReviewDecision } from "@/features/reviews/eligibility";
+import { getCurrentSubtaskReviewSubmission } from "@/features/reviews/submission-selection";
+import { decideSubtaskReview } from "@/features/subtasks/api/subtask-workflow-api";
+import {
+  subtaskDetailQueryOptions,
+  subtaskSubmissionAttachmentsQueryOptions,
+  subtaskSubmissionsQueryOptions
+} from "@/features/subtasks/query-options";
+import { invalidateSubtaskWorkflow } from "@/features/workflow/cache-invalidation";
 import { isPhase1CapabilityEnabled } from "@/lib/phase-1/capabilities";
 import { SupabaseUserError } from "@/lib/supabase/errors";
 import { colors } from "@/theme/colors";
-import { tokens } from "@/theme/tokens";
+
+interface SubtaskReviewViewProps {
+  subtask: Pick<Subtask, "title">;
+  submission: SubtaskSubmission;
+  attachments: readonly SubtaskSubmissionAttachment[];
+  attachmentsLoading: boolean;
+  attachmentsError: boolean;
+  canOpenEvidence: boolean;
+  canReview: boolean;
+  decisionPending: boolean;
+  decisionError: string | null;
+  onRetryAttachments(): void;
+  onDecide(approve: boolean, feedback: string): void;
+  onBack(): void;
+}
+
+export function SubtaskReviewView({ subtask, submission, ...props }: SubtaskReviewViewProps) {
+  return (
+    <ReviewSubmissionPanel
+      workKind="subtask"
+      workTitle={subtask.title}
+      submission={submission}
+      {...props}
+    />
+  );
+}
 
 function reviewError(error: unknown): string {
-  return error instanceof SupabaseUserError ? error.message : "We could not record this decision. Refresh to confirm the current review state.";
+  return error instanceof SupabaseUserError
+    ? error.message
+    : "We could not record this decision. Refresh to confirm the current review state.";
 }
 
 export function SubtaskReviewScreen({ subtaskId }: { subtaskId: string }) {
@@ -25,13 +58,22 @@ export function SubtaskReviewScreen({ subtaskId }: { subtaskId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const subtaskQuery = useQuery(subtaskDetailQueryOptions(subtaskId));
-  const submissionsQuery = useQuery({ ...subtaskSubmissionsQueryOptions(subtaskId, 0), enabled: subtaskQuery.isSuccess && subtaskQuery.data !== null });
-  const [feedback, setFeedback] = React.useState("");
+  const submissionsQuery = useQuery({
+    ...subtaskSubmissionsQueryOptions(subtaskId, 0),
+    enabled: subtaskQuery.isSuccess && subtaskQuery.data !== null
+  });
+  const pendingSubmission = getCurrentSubtaskReviewSubmission(subtaskQuery.data, submissionsQuery.data);
+  const attachmentsQuery = useQuery({
+    ...subtaskSubmissionAttachmentsQueryOptions(pendingSubmission?.id ?? subtaskId),
+    enabled: pendingSubmission !== undefined
+  });
   const mutation = useMutation({
     mutationFn: decideSubtaskReview,
-    onSuccess: async (_value, input) => {
+    onSuccess: async (updatedSubtask, input) => {
       const subtask = subtaskQuery.data;
-      if (subtask) await invalidateSubtaskWorkflow(queryClient, input.subtaskId, subtask.taskId);
+      if (!subtask) return;
+      await invalidateSubtaskWorkflow(queryClient, input.subtaskId, subtask.taskId);
+      queryClient.setQueryData(subtaskDetailQueryOptions(input.subtaskId).queryKey, updatedSubtask);
     }
   });
 
@@ -39,57 +81,59 @@ export function SubtaskReviewScreen({ subtaskId }: { subtaskId: string }) {
   if (!isPhase1CapabilityEnabled("subtaskDecision")) {
     return <AppScreen testID="subtask-review-gated"><StatusNotice tone="warning">Subtask review is prepared but disabled until its exact deployed checks are recorded.</StatusNotice></AppScreen>;
   }
-  if (subtaskQuery.isLoading || submissionsQuery.isLoading) return <AppScreen><ActivityIndicator accessibilityLabel="Loading subtask review" color={colors.primary} /></AppScreen>;
-  const submission = submissionsQuery.data?.find((item) => item.status === "pending");
-  if (!subtaskQuery.data || !submission || subtaskQuery.isError || submissionsQuery.isError) {
+  if (subtaskQuery.isLoading || submissionsQuery.isLoading) {
+    return <AppScreen><ActivityIndicator accessibilityLabel="Loading subtask review" color={colors.primary} /></AppScreen>;
+  }
+  if (subtaskQuery.isError || submissionsQuery.isError) {
+    return (
+      <AppScreen>
+        <StatusNotice tone="danger">We could not load this subtask review. Try again.</StatusNotice>
+        <Button
+          label="Retry subtask review"
+          onPress={() => {
+            void subtaskQuery.refetch();
+            void submissionsQuery.refetch();
+          }}
+        />
+      </AppScreen>
+    );
+  }
+  if (!subtaskQuery.data || !pendingSubmission) {
     return <AppScreen><StatusNotice tone="danger">This pending subtask review is unavailable or you do not have access to it.</StatusNotice></AppScreen>;
   }
 
-  const eligibility = getSubtaskReviewEligibility(submission, state.profile.id, state.profile.role);
-  const canReview = canRequestReviewDecision(eligibility);
-  const decide = (approve: boolean): void => {
-    if (!approve && !feedback.trim()) return;
-    const action = approve ? "approve" : "request changes to";
-    Alert.alert(
-      `${approve ? "Approve" : "Request changes"} subtask`,
-      `This will immediately ${action} this submission through the server.`,
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: approve ? "Approve" : "Request changes",
-          style: approve ? "default" : "destructive",
-          onPress: () =>
-            mutation.mutate(
-              { subtaskId, approve, feedback },
-              {
-                onSuccess: () => {
-                  router.replace({
-                    pathname: "/subtasks/[subtask-id]",
-                    params: { "subtask-id": subtaskId }
-                  });
-                }
-              }
-            )
-        }
-      ]
-    );
-  };
+  const canReview = canRequestReviewDecision(
+    getSubtaskReviewEligibility(pendingSubmission, state.profile.id, state.profile.role)
+  );
+  const canOpenEvidence =
+    isPhase1CapabilityEnabled("evidenceRules") && isPhase1CapabilityEnabled("evidenceSignedRead");
 
-  return <ScrollView contentInsetAdjustmentBehavior="automatic" keyboardShouldPersistTaps="handled" style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: tokens.space.lg, gap: tokens.space.lg }}>
-    <View style={{ gap: tokens.space.xs }}>
-      <Text style={{ color: colors.label, fontSize: tokens.type.display, fontWeight: "800" }}>Review subtask</Text>
-      <Text style={{ color: colors.secondaryLabel, fontSize: tokens.type.body }}>{subtaskQuery.data.title} · Version {submission.version}</Text>
-    </View>
-    <StatusNotice>Submitted by {submission.submitterName}. Evidence and prior attempts remain immutable.</StatusNotice>
-    {!canReview ? <StatusNotice tone="danger">You are not the resolved reviewer for this submission.</StatusNotice> : <>
-      <View style={{ gap: tokens.space.xs }}>
-        <Text style={{ color: colors.label, fontSize: tokens.type.caption, fontWeight: "700" }}>Feedback {"(required for changes)"}</Text>
-        <TextInput accessibilityLabel="Review feedback" value={feedback} onChangeText={setFeedback} multiline maxLength={2000} textAlignVertical="top" style={{ minHeight: 120, padding: tokens.space.md, borderRadius: tokens.radius.md, borderWidth: 1, borderColor: colors.separator, color: colors.label, backgroundColor: colors.surface }} />
-      </View>
-      {mutation.error ? <StatusNotice tone="danger">{reviewError(mutation.error)}</StatusNotice> : null}
-      <Button label="Approve subtask" loading={mutation.isPending} onPress={() => decide(true)} />
-      <Button label="Request changes" variant="danger" disabled={!feedback.trim()} onPress={() => decide(false)} />
-    </>}
-    <Button label="Back to subtask" variant="secondary" onPress={() => router.back()} />
-  </ScrollView>;
+  return (
+    <SubtaskReviewView
+      subtask={subtaskQuery.data}
+      submission={pendingSubmission}
+      attachments={attachmentsQuery.data ?? []}
+      attachmentsLoading={attachmentsQuery.isLoading}
+      attachmentsError={attachmentsQuery.isError}
+      canOpenEvidence={canOpenEvidence}
+      canReview={canReview}
+      decisionPending={mutation.isPending}
+      decisionError={mutation.error ? reviewError(mutation.error) : null}
+      onRetryAttachments={() => void attachmentsQuery.refetch()}
+      onDecide={(approve, feedback) => {
+        mutation.mutate(
+          { subtaskId, approve, feedback },
+          {
+            onSuccess: () => {
+              router.replace({
+                pathname: "/subtasks/[subtask-id]",
+                params: { "subtask-id": subtaskId }
+              });
+            }
+          }
+        );
+      }}
+      onBack={() => router.back()}
+    />
+  );
 }

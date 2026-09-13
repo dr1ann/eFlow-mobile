@@ -11,7 +11,7 @@ export const queryKeys = {
     history: (taskId: string, page: number) => ["tasks", "history", taskId, page] as const,
     submissions: (taskId: string, page: number) =>
       ["tasks", "submissions", taskId, page] as const,
-    attachments: (taskId: string, submissionId: string | null) =>
+    attachments: (taskId: string, submissionId: string) =>
       ["tasks", "attachments", taskId, submissionId] as const
   },
   subtasks: {
