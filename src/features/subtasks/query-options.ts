@@ -1,6 +1,6 @@
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
-import type { SubtaskFilter } from "@/contracts/subtasks";
+import type { Subtask, SubtaskFilter } from "@/contracts/subtasks";
 import { queryKeys } from "@/lib/query/keys";
 
 import {
@@ -11,15 +11,36 @@ import {
   listSubtaskSubmissions,
   listSubtasksByTask
 } from "./api/subtasks-api";
-import { subtaskMatchesFilter } from "./selectors";
+import { sortSubtasksByDeadline } from "./selectors";
+
+export interface SubtaskFeedPage {
+  items: readonly Subtask[];
+  nextPage: number | null;
+}
 
 export function mySubtasksQueryOptions(userId: string, filter: SubtaskFilter, page: number) {
   return queryOptions({
     queryKey: queryKeys.subtasks.mine(userId, filter, page),
     queryFn: async ({ signal }) => {
-      const subtasks = await listMySubtasks(userId, { page, signal });
-      return subtasks.filter((subtask) => subtaskMatchesFilter(subtask, filter));
+      const subtasks = await listMySubtasks(userId, { page, filter, signal });
+      return sortSubtasksByDeadline(subtasks);
     },
+    staleTime: 30_000
+  });
+}
+
+export function mySubtasksInfiniteQueryOptions(userId: string, filter: SubtaskFilter) {
+  return infiniteQueryOptions({
+    queryKey: queryKeys.subtasks.feed(userId, filter),
+    initialPageParam: 0,
+    queryFn: async ({ pageParam, signal }): Promise<SubtaskFeedPage> => {
+      const subtasks = await listMySubtasks(userId, { page: pageParam, filter, signal });
+      return {
+        items: sortSubtasksByDeadline(subtasks),
+        nextPage: subtasks.length === 30 ? pageParam + 1 : null
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: 30_000
   });
 }

@@ -1,6 +1,8 @@
 import type {
   Subtask,
+  SubtaskFilter,
   SubtaskProgressUpdate,
+  SubtaskStatus,
   SubtaskSubmission,
   SubtaskSubmissionAttachment
 } from "@/contracts/subtasks";
@@ -21,22 +23,51 @@ interface PageRequest {
   signal?: AbortSignal;
 }
 
+interface SubtaskWorkPageRequest extends PageRequest {
+  filter: SubtaskFilter;
+}
+
 function pageRange(page: number): [number, number] {
   const start = Math.max(0, page) * SUBTASK_PAGE_SIZE;
   return [start, start + SUBTASK_PAGE_SIZE - 1];
 }
 
+export function subtaskStatusesForFilter(filter: SubtaskFilter): readonly SubtaskStatus[] {
+  switch (filter) {
+    case "active":
+      return ["todo", "in_progress"];
+    case "review":
+      return ["for_review"];
+    case "changes_requested":
+      return ["changes_requested"];
+    case "completed":
+    case "history":
+      return ["completed"];
+  }
+}
+
+function applySubtaskStatusFilter<T extends { eq: Function; in: Function }>(
+  request: T,
+  filter: SubtaskFilter
+): T {
+  const statuses = subtaskStatusesForFilter(filter);
+  return statuses.length === 1
+    ? request.eq("status", statuses[0])
+    : request.in("status", statuses);
+}
+
 export async function listMySubtasks(
   userId: string,
-  { page, signal }: PageRequest
+  { page, filter, signal }: SubtaskWorkPageRequest
 ): Promise<readonly Subtask[]> {
   const [from, to] = pageRange(page);
-  const request = getSupabaseClient()
+  const request = applySubtaskStatusFilter(getSupabaseClient()
     .from("subtasks")
     .select("*")
-    .or(`assigned_to.eq.${userId},assigned_to_ids.cs.{${userId}}`)
+    .or(`assigned_to.eq.${userId},assigned_to_ids.cs.{${userId}}`), filter)
     .order("due_date", { ascending: true, nullsFirst: false })
     .order("position", { ascending: true })
+    .order("id", { ascending: true })
     .range(from, to);
   const { data, error } = await (signal ? request.abortSignal(signal) : request);
 
@@ -49,7 +80,8 @@ export async function listSubtasksByTask(taskId: string, signal?: AbortSignal): 
     .from("subtasks")
     .select("*")
     .eq("task_id", taskId)
-    .order("position", { ascending: true });
+    .order("position", { ascending: true })
+    .order("id", { ascending: true });
   const { data, error } = await (signal ? request.abortSignal(signal) : request);
 
   if (error) throw toSupabaseUserError(error);

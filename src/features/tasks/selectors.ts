@@ -1,7 +1,12 @@
 import type { Subtask } from "@/contracts/subtasks";
 import type { Task, TaskFilter } from "@/contracts/tasks";
+import {
+  deadlineGroupForDate,
+  toDeviceCalendarDate,
+  type DeadlineGroup
+} from "@/features/tasks/deadlines";
 
-export type DeadlineGroup = "overdue" | "today" | "upcoming" | "unscheduled";
+export type { DeadlineGroup } from "@/features/tasks/deadlines";
 
 export interface TaskDependencyState {
   isReady: boolean;
@@ -16,22 +21,7 @@ export interface TaskSubmissionReadiness {
   outstandingSubtaskIds: readonly string[];
 }
 
-function dateOnlyTimestamp(value: string): number | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
-  if (!match) return null;
-
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const timestamp = Date.UTC(year, month - 1, day);
-  const date = new Date(timestamp);
-  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
-    return null;
-  }
-  return timestamp;
-}
-
-function taskDeadline(task: Task): string | null {
+export function taskDeadline(task: Task): string | null {
   return task.deadline ?? task.dueDate;
 }
 
@@ -77,14 +67,15 @@ export function getTaskDependencyState(
 
 export function taskMatchesFilter(
   task: Task,
-  filter: TaskFilter,
-  allTasks: readonly Task[]
+  filter: TaskFilter
 ): boolean {
   switch (filter) {
     case "active":
       return task.status === "todo" || task.status === "in_progress";
     case "waiting":
-      return task.status === "pending_assignment" || !getTaskDependencyState(task, allTasks).isReady;
+      // Dependency readiness needs an authoritative complete-data contract.
+      // Do not infer it from one client page of task records.
+      return task.status === "pending_assignment";
     case "review":
       return task.status === "for_review";
     case "changes_requested":
@@ -98,10 +89,10 @@ export function taskMatchesFilter(
 
 export function sortTasksByDeadline(tasks: readonly Task[]): Task[] {
   return [...tasks].sort((left, right) => {
-    const leftTimestamp = taskDeadline(left) ? dateOnlyTimestamp(taskDeadline(left) ?? "") : null;
-    const rightTimestamp = taskDeadline(right) ? dateOnlyTimestamp(taskDeadline(right) ?? "") : null;
-    const leftSortValue = leftTimestamp ?? Number.POSITIVE_INFINITY;
-    const rightSortValue = rightTimestamp ?? Number.POSITIVE_INFINITY;
+    const leftDate = toDeviceCalendarDate(taskDeadline(left));
+    const rightDate = toDeviceCalendarDate(taskDeadline(right));
+    const leftSortValue = leftDate?.getTime() ?? Number.POSITIVE_INFINITY;
+    const rightSortValue = rightDate?.getTime() ?? Number.POSITIVE_INFINITY;
     if (leftSortValue !== rightSortValue) return leftSortValue - rightSortValue;
 
     const titleOrder = left.title.localeCompare(right.title);
@@ -111,15 +102,7 @@ export function sortTasksByDeadline(tasks: readonly Task[]): Task[] {
 }
 
 export function deadlineGroup(task: Task, now: Date): DeadlineGroup {
-  const deadline = taskDeadline(task);
-  if (!deadline) return "unscheduled";
-
-  const target = dateOnlyTimestamp(deadline);
-  if (target === null) return "unscheduled";
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  if (target < today) return "overdue";
-  if (target === today) return "today";
-  return "upcoming";
+  return deadlineGroupForDate(taskDeadline(task), now);
 }
 
 export function getTaskSubmissionReadiness(

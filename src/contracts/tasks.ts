@@ -42,6 +42,9 @@ export interface Task {
   acceptanceCriteria: readonly string[];
   definitionOfDone: string | null;
   feedback: string | null;
+  /** Canonical UUID relation used for project navigation and project work lists. */
+  linkedProjectId: string | null;
+  /** Legacy proposal hierarchy value; never use it to construct a project route. */
   projectId: string | null;
   projectTitle: string | null;
   tags: readonly string[];

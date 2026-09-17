@@ -27,6 +27,7 @@ const taskRow = {
   acceptance_criteria: [],
   definition_of_done: null,
   feedback: null,
+  linked_project_id: null,
   project_id: null,
   project_title: null,
   tags: [],

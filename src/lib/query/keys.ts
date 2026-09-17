@@ -6,7 +6,11 @@ export const queryKeys = {
       ["tasks", "list", userId, filter, page] as const,
     feed: (userId: string, filter: string) =>
       ["tasks", "feed", userId, filter] as const,
-    leading: (userId: string, page: number) => ["tasks", "leading", userId, page] as const,
+    leading: (userId: string, filter: string, page: number) =>
+      ["tasks", "leading", userId, filter, page] as const,
+    leadingFeed: (userId: string, filter: string) =>
+      ["tasks", "leading-feed", userId, filter] as const,
+    byProject: (projectId: string) => ["tasks", "by-project", projectId] as const,
     detail: (taskId: string) => ["tasks", "detail", taskId] as const,
     history: (taskId: string, page: number) => ["tasks", "history", taskId, page] as const,
     submissions: (taskId: string, page: number) =>
@@ -17,6 +21,8 @@ export const queryKeys = {
   subtasks: {
     mine: (userId: string, filter: string, page: number) =>
       ["subtasks", "mine", userId, filter, page] as const,
+    feed: (userId: string, filter: string) =>
+      ["subtasks", "feed", userId, filter] as const,
     byTask: (taskId: string) => ["subtasks", "by-task", taskId] as const,
     detail: (subtaskId: string) => ["subtasks", "detail", subtaskId] as const,
     progress: (subtaskId: string, page: number) =>

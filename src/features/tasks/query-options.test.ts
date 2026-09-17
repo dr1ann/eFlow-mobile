@@ -1,5 +1,7 @@
 import {
+  leadingTasksInfiniteQueryOptions,
   myTasksInfiniteQueryOptions,
+  projectTasksInfiniteQueryOptions,
   taskAttachmentsQueryOptions,
   taskDetailQueryOptions,
   taskSubmissionsQueryOptions
@@ -21,6 +23,15 @@ describe("task query options", () => {
   it("uses a user-and-filter scoped key for the paged work feed", () => {
     expect(myTasksInfiniteQueryOptions("user-1", "active").queryKey).toEqual(
       queryKeys.tasks.feed("user-1", "active")
+    );
+  });
+
+  it("keeps leading work and project work in separate scoped feeds", () => {
+    expect(leadingTasksInfiniteQueryOptions("user-1", "active").queryKey).toEqual(
+      queryKeys.tasks.leadingFeed("user-1", "active")
+    );
+    expect(projectTasksInfiniteQueryOptions(taskId).queryKey).toEqual(
+      queryKeys.tasks.byProject(taskId)
     );
   });
 });

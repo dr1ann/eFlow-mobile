@@ -1,6 +1,6 @@
 import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 
-import type { Task, TaskFilter } from "@/contracts/tasks";
+import type { TaskFilter } from "@/contracts/tasks";
 import { queryKeys } from "@/lib/query/keys";
 
 import {
@@ -8,22 +8,21 @@ import {
   getTask,
   listLeadingTasks,
   listMyTasks,
+  listTasksByProject,
   listTaskAttachments,
   listTaskSubmissions
 } from "./api/tasks-api";
-import { sortTasksByDeadline, taskMatchesFilter } from "./selectors";
+import type { TaskFeedPage } from "./feed";
+import { sortTasksByDeadline } from "./selectors";
 
-export interface TaskFeedPage {
-  items: readonly Task[];
-  nextPage: number | null;
-}
+export type { TaskFeedPage } from "./feed";
 
 export function myTasksQueryOptions(userId: string, filter: TaskFilter, page: number) {
   return queryOptions({
     queryKey: queryKeys.tasks.list(userId, filter, page),
     queryFn: async ({ signal }) => {
-      const tasks = await listMyTasks(userId, { page, signal });
-      return sortTasksByDeadline(tasks.filter((task) => taskMatchesFilter(task, filter, tasks)));
+      const tasks = await listMyTasks(userId, { page, filter, signal });
+      return sortTasksByDeadline(tasks);
     },
     staleTime: 30_000
   });
@@ -34,11 +33,9 @@ export function myTasksInfiniteQueryOptions(userId: string, filter: TaskFilter) 
     queryKey: queryKeys.tasks.feed(userId, filter),
     initialPageParam: 0,
     queryFn: async ({ pageParam, signal }): Promise<TaskFeedPage> => {
-      const tasks = await listMyTasks(userId, { page: pageParam, signal });
+      const tasks = await listMyTasks(userId, { page: pageParam, filter, signal });
       return {
-        items: sortTasksByDeadline(
-          tasks.filter((task) => taskMatchesFilter(task, filter, tasks))
-        ),
+        items: sortTasksByDeadline(tasks),
         nextPage: tasks.length === TASK_PAGE_SIZE ? pageParam + 1 : null
       };
     },
@@ -47,10 +44,45 @@ export function myTasksInfiniteQueryOptions(userId: string, filter: TaskFilter) 
   });
 }
 
-export function leadingTasksQueryOptions(userId: string, page: number) {
+export function leadingTasksQueryOptions(userId: string, filter: TaskFilter, page: number) {
   return queryOptions({
-    queryKey: queryKeys.tasks.leading(userId, page),
-    queryFn: ({ signal }) => listLeadingTasks(userId, { page, signal }),
+    queryKey: queryKeys.tasks.leading(userId, filter, page),
+    queryFn: async ({ signal }) => {
+      const tasks = await listLeadingTasks(userId, { page, filter, signal });
+      return sortTasksByDeadline(tasks);
+    },
+    staleTime: 30_000
+  });
+}
+
+export function leadingTasksInfiniteQueryOptions(userId: string, filter: TaskFilter) {
+  return infiniteQueryOptions({
+    queryKey: queryKeys.tasks.leadingFeed(userId, filter),
+    initialPageParam: 0,
+    queryFn: async ({ pageParam, signal }): Promise<TaskFeedPage> => {
+      const tasks = await listLeadingTasks(userId, { page: pageParam, filter, signal });
+      return {
+        items: sortTasksByDeadline(tasks),
+        nextPage: tasks.length === TASK_PAGE_SIZE ? pageParam + 1 : null
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
+    staleTime: 30_000
+  });
+}
+
+export function projectTasksInfiniteQueryOptions(projectId: string) {
+  return infiniteQueryOptions({
+    queryKey: queryKeys.tasks.byProject(projectId),
+    initialPageParam: 0,
+    queryFn: async ({ pageParam, signal }): Promise<TaskFeedPage> => {
+      const tasks = await listTasksByProject(projectId, { page: pageParam, signal });
+      return {
+        items: sortTasksByDeadline(tasks),
+        nextPage: tasks.length === TASK_PAGE_SIZE ? pageParam + 1 : null
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.nextPage,
     staleTime: 30_000
   });
 }

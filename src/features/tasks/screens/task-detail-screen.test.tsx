@@ -25,6 +25,7 @@ const task = {
   acceptanceCriteria: ["Figures are reconciled"],
   definitionOfDone: "Reviewer-ready report",
   feedback: null,
+  linkedProjectId: null,
   projectId: null,
   projectTitle: "Citizen Services",
   tags: [],
@@ -141,5 +142,27 @@ describe("TaskDetailView", () => {
 
     expect(view.getByLabelText("Resume work")).toBeTruthy();
     expect(view.queryByLabelText("Submit task for review")).toBeNull();
+  });
+
+  it("uses the canonical linked project ID only when project navigation is available", async () => {
+    const onOpenProject = jest.fn();
+    const view = await render(
+      <TaskDetailView
+        task={{
+          ...task,
+          linkedProjectId: "77777777-7777-4777-8777-777777777777"
+        }}
+        subtasks={[]}
+        subtasksLoading={false}
+        subtasksError={false}
+        canOpenProject
+        onOpenProject={onOpenProject}
+        onOpenSubtask={jest.fn()}
+        onRetrySubtasks={jest.fn()}
+      />
+    );
+
+    await fireEvent.press(view.getByLabelText("Open linked project"));
+    expect(onOpenProject).toHaveBeenCalledTimes(1);
   });
 });

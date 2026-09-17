@@ -36,6 +36,7 @@ function taskRow(overrides: Record<string, unknown> = {}): unknown {
     acceptance_criteria: ["Signed report", 5, "Filed copy"],
     definition_of_done: "Approved report",
     feedback: null,
+    linked_project_id: null,
     project_id: null,
     project_title: null,
     tags: ["monthly"],
@@ -73,6 +74,17 @@ describe("task mappers", () => {
     expect(mapped.teamMemberNames).toEqual([]);
     expect(mapped.dependencyIds).toEqual([]);
     expect(mapped.tags).toEqual([]);
+  });
+
+  it("keeps the canonical linked project UUID separate from a legacy project hierarchy value", () => {
+    const linkedProjectId = "77777777-7777-4777-8777-777777777777";
+    const mapped = mapTaskRow(taskRow({
+      linked_project_id: linkedProjectId,
+      project_id: "proposal-test-program-1-project-hierarchy"
+    }));
+
+    expect(mapped.linkedProjectId).toBe(linkedProjectId);
+    expect(mapped.projectId).toBe("proposal-test-program-1-project-hierarchy");
   });
 
   it("fails closed for an unsupported workflow status", () => {

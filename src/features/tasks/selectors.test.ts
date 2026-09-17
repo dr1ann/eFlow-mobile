@@ -39,6 +39,7 @@ function task(overrides: Partial<Task> = {}): Task {
     acceptanceCriteria: [],
     definitionOfDone: null,
     feedback: null,
+    linkedProjectId: null,
     projectId: null,
     projectTitle: null,
     tags: [],
@@ -91,7 +92,7 @@ describe("task selectors", () => {
     expect(isTaskLead(reassigned, ids.employee)).toBe(false);
   });
 
-  it("keeps a task waiting when an existing or unavailable dependency is unresolved", () => {
+  it("reports unresolved dependencies without classifying a partial page as waiting", () => {
     const dependencyId = "55555555-5555-4555-8555-555555555555";
     const dependent = task({ dependencyIds: [dependencyId] });
 
@@ -105,6 +106,8 @@ describe("task selectors", () => {
       blockedByTaskIds: [],
       missingTaskIds: [dependencyId]
     });
+    expect(taskMatchesFilter(dependent, "waiting")).toBe(false);
+    expect(taskMatchesFilter(task({ status: "pending_assignment" }), "waiting")).toBe(true);
   });
 
   it.each<[TaskStatus, TaskFilter, boolean]>([
@@ -117,7 +120,7 @@ describe("task selectors", () => {
     ["cancelled", "history", true],
     ["for_review", "active", false]
   ])("filters %s against %s deterministically", (status, filter, expected) => {
-    expect(taskMatchesFilter(task({ status }), filter, [])).toBe(expected);
+    expect(taskMatchesFilter(task({ status }), filter)).toBe(expected);
   });
 
   it("sorts valid deadlines first and uses a stable title/id tie break", () => {
@@ -132,7 +135,7 @@ describe("task selectors", () => {
   });
 
   it("classifies deadlines without treating malformed dates as actionable", () => {
-    const now = new Date("2026-08-26T10:00:00Z");
+    const now = new Date(2026, 7, 26, 10, 0, 0);
     expect(deadlineGroup(task({ dueDate: "2026-08-25" }), now)).toBe("overdue");
     expect(deadlineGroup(task({ dueDate: "2026-08-26" }), now)).toBe("today");
     expect(deadlineGroup(task({ dueDate: "2026-08-27" }), now)).toBe("upcoming");

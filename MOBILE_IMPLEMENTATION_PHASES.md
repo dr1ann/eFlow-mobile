@@ -324,11 +324,12 @@ For the first web-assisted defense, implement **4 → 5 → 7 → 8** with work 
 
 ## Phase 5 — My work, leading work, deadlines, and project navigation
 
-- Status: planned.
+- Status: P5.1–P5.4 are implemented locally September 15, 2026; deployed RLS and Android/iOS acceptance remain open.
 - Goal: make every participant's assigned work easy to find and follow.
-- Scope: My Tasks / My Subtasks / Leading views, correct filtering/pagination, due-soon/overdue navigation, project-to-task drill-down, and guarded links to details/history.
-- Exit: contributors can find directly assigned subtasks, leads can find the work they actually lead, and all supported drill-downs/filters work across pages without exposing unauthorized records.
+- Scope: My Tasks / My Subtasks / Leading views, server-filtered pagination, loaded-item due-soon/overdue navigation with device-local calendar semantics, project-to-task drill-down, and guarded links to details/history.
+- Exit: contributors can find directly assigned subtasks, leads can find the work they actually lead, and all supported drill-downs/filters work across pages without exposing unauthorized records. The assignee-only subtask RLS probe and device acceptance remain required before this exit is accepted.
 - Plan: [Phase 5 details](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md#phase-5--my-work-leading-work-deadlines-and-project-navigation).
+- Contract notes: [Phase 5 work discovery](docs/PHASE_5_CONTRACTS.md).
 
 ## Phase 6 — Mobile task planning and delegation
 

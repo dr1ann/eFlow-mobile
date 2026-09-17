@@ -1,4 +1,5 @@
 import {
+  mySubtasksInfiniteQueryOptions,
   subtaskDetailQueryOptions,
   subtaskProgressQueryOptions,
   subtaskSubmissionAttachmentsQueryOptions
@@ -17,5 +18,11 @@ describe("subtask query options", () => {
       "submission-attachments",
       submissionId
     ]);
+  });
+
+  it("keeps the direct-assignee work feed scoped to its user and status filter", () => {
+    expect(mySubtasksInfiniteQueryOptions("user-1", "active").queryKey).toEqual(
+      queryKeys.subtasks.feed("user-1", "active")
+    );
   });
 });

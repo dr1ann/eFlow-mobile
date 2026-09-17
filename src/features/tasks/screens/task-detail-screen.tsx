@@ -39,6 +39,7 @@ interface TaskDetailViewProps {
   canSubmitTask?: boolean;
   canReviewTask?: boolean;
   canOpenDiscussion?: boolean;
+  canOpenProject?: boolean;
   startingTask?: boolean;
   startError?: string | null;
   onOpenSubtask(subtaskId: string): void;
@@ -48,6 +49,7 @@ interface TaskDetailViewProps {
   onSubmitTask?(): void;
   onReviewTask?(): void;
   onOpenDiscussion?(): void;
+  onOpenProject?(): void;
 }
 
 export function TaskDetailView({
@@ -62,6 +64,7 @@ export function TaskDetailView({
   canSubmitTask = false,
   canReviewTask = false,
   canOpenDiscussion = false,
+  canOpenProject = false,
   startingTask = false,
   startError = null,
   onOpenSubtask,
@@ -70,7 +73,8 @@ export function TaskDetailView({
   onStartTask,
   onSubmitTask,
   onReviewTask,
-  onOpenDiscussion
+  onOpenDiscussion,
+  onOpenProject
 }: TaskDetailViewProps) {
   useColorScheme();
 
@@ -151,7 +155,27 @@ export function TaskDetailView({
           <DetailSection title="People and project">
             <DetailValue label="Task lead" value={task.assigneeName ?? "Not assigned"} />
             <DetailValue label="Team" value={task.teamName ?? "No team name"} />
-            <DetailValue label="Project" value={task.projectTitle ?? "No related project"} />
+            {task.linkedProjectId && canOpenProject && onOpenProject ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Open linked project"
+                onPress={onOpenProject}
+                style={({ pressed }) => ({
+                  minHeight: tokens.touchTarget,
+                  justifyContent: "center",
+                  opacity: pressed ? 0.7 : 1
+                })}
+              >
+                <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.caption, fontWeight: "700" }}>
+                  Project
+                </Text>
+                <Text selectable style={{ color: colors.primary, fontSize: tokens.type.body, fontWeight: "700" }}>
+                  {task.projectTitle ?? "Open linked project"}
+                </Text>
+              </Pressable>
+            ) : (
+              <DetailValue label="Project" value={task.projectTitle ?? "No related project"} />
+            )}
           </DetailSection>
 
           <StatusNotice tone="warning">
@@ -268,7 +292,7 @@ function SubtaskListItem({ subtask, onPress }: { subtask: Subtask; onPress(): vo
 export function TaskDetailScreen({ taskId }: { taskId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { state } = useAuth();
+  const { state, can } = useAuth();
   const taskQuery = useQuery(taskDetailQueryOptions(taskId));
   const startTaskMutation = useStartTaskMutation();
   const submissionsQuery = useQuery({
@@ -343,6 +367,7 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
     : startTaskMutation.error instanceof Error
       ? "We could not start this task. Refresh to confirm its current status."
       : null;
+  const linkedProjectId = taskQuery.data.linkedProjectId;
 
   return (
     <TaskDetailView
@@ -357,6 +382,7 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
       canSubmitTask={canSubmitTask}
       canReviewTask={canReviewTask}
       canOpenDiscussion={isPhase1CapabilityEnabled("taskComments")}
+      canOpenProject={can("navigation.projects") && linkedProjectId !== null}
       startingTask={startTaskMutation.isPending}
       startError={startError}
       onRetrySubtasks={() => void subtasksQuery.refetch()}
@@ -368,6 +394,14 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
       onReviewTask={() => router.push(`/reviews/tasks/${taskId}` as Href)}
       onOpenDiscussion={() =>
         router.push({ pathname: "/tasks/[task-id]/discussion", params: { "task-id": taskId } })
+      }
+      onOpenProject={() =>
+        linkedProjectId
+          ? router.push({
+              pathname: "/projects/[project-id]",
+              params: { "project-id": linkedProjectId }
+            })
+          : undefined
       }
       onOpenSubtask={(subtaskId) =>
         router.push({ pathname: "/subtasks/[subtask-id]", params: { "subtask-id": subtaskId } })

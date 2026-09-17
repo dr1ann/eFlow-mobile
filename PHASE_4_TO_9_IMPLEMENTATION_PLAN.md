@@ -100,6 +100,16 @@ Every demo participant can find the work they are responsible for, understand it
 3. **P5.3 — Deadlines:** add due-soon/overdue navigation from authorized work. Define the date/time-zone behavior and test midnight boundaries; do not silently treat UTC as the user's local date. Label partial list counts rather than presenting them as organization totals.
 4. **P5.4 — Project drill-down:** show authorized linked tasks under a project, link task detail back to its project, and preserve task → subtask → history navigation. Handle deleted and RLS-hidden destinations without revealing record existence.
 
+### Implementation progress — September 15, 2026
+
+- [x] **P5.1:** The Work tab now offers virtualized My Tasks, My Subtasks, and Work I am Leading views with stable ID de-duplication, status filtering, refresh, retry, cached/offline notices, partial-page counts, explicit load-more controls, and accessible rows. My Subtasks reads direct assignee fields rather than filtering through a parent-task team in the client.
+- [x] **P5.2:** Task and subtask status filters now run in the RLS-backed database query before pagination. The Waiting task filter is limited to the persisted `pending_assignment` state; the client no longer presents dependency state inferred from a partial page as authoritative blocking.
+- [x] **P5.3:** Work views provide loaded-item Overdue and Due in 7 days navigation. Date-only values use the device's local calendar date; timestamps convert to the device's local calendar date. The UI labels loaded counts and explains that deadline views are not organization totals.
+- [x] **P5.4:** Project drill-down queries only `tasks.linked_project_id`, never legacy `project_id`. Project → task and task → project navigation remain permission-gated in the client and re-read the destination under RLS, with one generic unavailable state for deleted and hidden records.
+- [ ] **P5 acceptance:** No designated non-production records, assignee-only RLS receipt, or installed Android/iOS session was available in this workspace. The direct-subtask-assignee probe must confirm that deployed RLS permits an assignee who is not otherwise visible through the parent task before this phase is accepted.
+
+See [Phase 5 contract notes](docs/PHASE_5_CONTRACTS.md) for the canonical project relation, device-local deadline policy, and deployment probes.
+
 ### Tests and manual verification
 
 Extend `src/features/tasks/screens/work-screen.test.tsx`, task/subtask query tests, task/deadline selector tests, and project/detail tests. Add component tests next to any new list screens. Cover a contributor assigned only at subtask level, actual versus stale recommended lead, empty and later-page filter matches, duplicates, stable sorting, deadline boundaries, unauthorized/deleted links, and refresh errors with cached data.

@@ -16,26 +16,84 @@ import { AppScreen } from "@/components/app-screen";
 import { Button } from "@/components/button";
 import { StatusNotice } from "@/components/status-notice";
 import {
+  SUBTASK_FILTERS,
+  subtaskStatusLabel,
+  type Subtask,
+  type SubtaskFilter
+} from "@/contracts/subtasks";
+import {
   TASK_FILTERS,
-  taskStatusLabel,
   type Task,
   type TaskFilter
 } from "@/contracts/tasks";
 import { useAuth } from "@/features/auth/auth-context";
+import { TaskListItem } from "@/features/tasks/components/task-list-item";
 import {
-  myTasksInfiniteQueryOptions,
-  type TaskFeedPage
+  matchesDeadlineFilter,
+  type DeadlineFilter
+} from "@/features/tasks/deadlines";
+import {
+  leadingTasksInfiniteQueryOptions,
+  myTasksInfiniteQueryOptions
 } from "@/features/tasks/query-options";
+import { flattenTaskFeed } from "@/features/tasks/feed";
 import { formatTaskDate, TASK_FILTER_LABELS } from "@/features/tasks/presentation";
+import { taskDeadline } from "@/features/tasks/selectors";
+import {
+  mySubtasksInfiniteQueryOptions,
+  type SubtaskFeedPage
+} from "@/features/subtasks/query-options";
+import { sortSubtasksByDeadline } from "@/features/subtasks/selectors";
 import { colors } from "@/theme/colors";
 import { tokens } from "@/theme/tokens";
 
-export function flattenTaskFeed(pages: readonly TaskFeedPage[] | undefined): Task[] {
-  const tasks = new Map<string, Task>();
+export const WORK_SCOPES = ["tasks", "subtasks", "leading"] as const;
+export type WorkScope = (typeof WORK_SCOPES)[number];
+
+const WORK_SCOPE_LABELS: Record<WorkScope, string> = {
+  tasks: "My Tasks",
+  subtasks: "My Subtasks",
+  leading: "Work I am Leading"
+};
+
+const SUBTASK_FILTER_LABELS: Record<SubtaskFilter, string> = {
+  active: "Active",
+  review: "Awaiting review",
+  changes_requested: "Changes requested",
+  completed: "Completed",
+  history: "History"
+};
+
+const DEADLINE_FILTERS: readonly { value: DeadlineFilter; label: string }[] = [
+  { value: "all", label: "All dates" },
+  { value: "overdue", label: "Overdue" },
+  { value: "due_soon", label: "Due in 7 days" }
+];
+
+export { flattenTaskFeed } from "@/features/tasks/feed";
+
+export function flattenSubtaskFeed(pages: readonly SubtaskFeedPage[] | undefined): Subtask[] {
+  const subtasks = new Map<string, Subtask>();
   for (const page of pages ?? []) {
-    for (const task of page.items) tasks.set(task.id, task);
+    for (const subtask of page.items) subtasks.set(subtask.id, subtask);
   }
-  return [...tasks.values()];
+  return sortSubtasksByDeadline([...subtasks.values()]);
+}
+
+export function filterTasksForDeadline(
+  tasks: readonly Task[],
+  filter: DeadlineFilter,
+  now: Date
+): Task[] {
+  return tasks.filter((task) => matchesDeadlineFilter(taskDeadline(task), filter, now));
+}
+
+export function filterSubtasksForDeadline(
+  subtasks: readonly Subtask[],
+  filter: DeadlineFilter,
+  now: Date
+): Subtask[] {
+  return subtasks.filter((subtask) => matchesDeadlineFilter(subtask.dueDate, filter, now));
 }
 
 interface WorkScreenViewProps {
@@ -51,6 +109,10 @@ interface WorkScreenViewProps {
   onRefresh(): void;
   onLoadMore(): void;
   onOpenTask(taskId: string): void;
+  scope?: WorkScope;
+  deadlineFilter?: DeadlineFilter;
+  onScopeChange?(scope: WorkScope): void;
+  onDeadlineFilterChange?(filter: DeadlineFilter): void;
 }
 
 export function WorkScreenView({
@@ -65,15 +127,154 @@ export function WorkScreenView({
   onFilterChange,
   onRefresh,
   onLoadMore,
-  onOpenTask
+  onOpenTask,
+  scope = "tasks",
+  deadlineFilter = "all",
+  onScopeChange = () => undefined,
+  onDeadlineFilterChange = () => undefined
 }: WorkScreenViewProps) {
+  return (
+    <WorkList
+      testID="work-task-list"
+      items={tasks}
+      itemLabel="task"
+      title={scope === "leading" ? "Work I am leading" : "My work"}
+      description={
+        scope === "leading"
+          ? "Tasks where the stored assignment makes you the effective Task Lead."
+          : "Tasks returned by your authenticated Supabase access."
+      }
+      scope={scope}
+      deadlineFilter={deadlineFilter}
+      filters={<TaskFilters filter={filter} onFilterChange={onFilterChange} />}
+      isLoading={isLoading}
+      isRefreshing={isRefreshing}
+      isError={isError}
+      isPaused={isPaused}
+      hasNextPage={hasNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      onScopeChange={onScopeChange}
+      onDeadlineFilterChange={onDeadlineFilterChange}
+      onRefresh={onRefresh}
+      onLoadMore={onLoadMore}
+      renderItem={(task) => <TaskListItem task={task} onPress={() => onOpenTask(task.id)} />}
+    />
+  );
+}
+
+interface SubtaskWorkScreenViewProps {
+  subtasks: readonly Subtask[];
+  filter: SubtaskFilter;
+  isLoading: boolean;
+  isRefreshing: boolean;
+  isError: boolean;
+  isPaused: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  deadlineFilter: DeadlineFilter;
+  onFilterChange(filter: SubtaskFilter): void;
+  onDeadlineFilterChange(filter: DeadlineFilter): void;
+  onScopeChange(scope: WorkScope): void;
+  onRefresh(): void;
+  onLoadMore(): void;
+  onOpenSubtask(subtaskId: string): void;
+}
+
+export function SubtaskWorkScreenView({
+  subtasks,
+  filter,
+  isLoading,
+  isRefreshing,
+  isError,
+  isPaused,
+  hasNextPage,
+  isFetchingNextPage,
+  deadlineFilter,
+  onFilterChange,
+  onDeadlineFilterChange,
+  onScopeChange,
+  onRefresh,
+  onLoadMore,
+  onOpenSubtask
+}: SubtaskWorkScreenViewProps) {
+  return (
+    <WorkList
+      testID="work-subtask-list"
+      items={subtasks}
+      itemLabel="subtask"
+      title="My subtasks"
+      description="Subtasks assigned directly to you by the authenticated work contract."
+      scope="subtasks"
+      deadlineFilter={deadlineFilter}
+      filters={<SubtaskFilters filter={filter} onFilterChange={onFilterChange} />}
+      isLoading={isLoading}
+      isRefreshing={isRefreshing}
+      isError={isError}
+      isPaused={isPaused}
+      hasNextPage={hasNextPage}
+      isFetchingNextPage={isFetchingNextPage}
+      onScopeChange={onScopeChange}
+      onDeadlineFilterChange={onDeadlineFilterChange}
+      onRefresh={onRefresh}
+      onLoadMore={onLoadMore}
+      renderItem={(subtask) => (
+        <SubtaskWorkListItem subtask={subtask} onPress={() => onOpenSubtask(subtask.id)} />
+      )}
+    />
+  );
+}
+
+interface WorkListProps<Item extends { id: string }> {
+  testID: string;
+  items: readonly Item[];
+  itemLabel: string;
+  title: string;
+  description: string;
+  scope: WorkScope;
+  deadlineFilter: DeadlineFilter;
+  filters: React.ReactNode;
+  isLoading: boolean;
+  isRefreshing: boolean;
+  isError: boolean;
+  isPaused: boolean;
+  hasNextPage: boolean;
+  isFetchingNextPage: boolean;
+  onScopeChange(scope: WorkScope): void;
+  onDeadlineFilterChange(filter: DeadlineFilter): void;
+  onRefresh(): void;
+  onLoadMore(): void;
+  renderItem(item: Item): React.ReactElement;
+}
+
+function WorkList<Item extends { id: string }>({
+  testID,
+  items,
+  itemLabel,
+  title,
+  description,
+  scope,
+  deadlineFilter,
+  filters,
+  isLoading,
+  isRefreshing,
+  isError,
+  isPaused,
+  hasNextPage,
+  isFetchingNextPage,
+  onScopeChange,
+  onDeadlineFilterChange,
+  onRefresh,
+  onLoadMore,
+  renderItem
+}: WorkListProps<Item>) {
   useColorScheme();
+  const pluralLabel = `${itemLabel}${items.length === 1 ? "" : "s"}`;
 
   return (
     <FlatList
-      testID="work-task-list"
-      data={tasks}
-      keyExtractor={(task) => task.id}
+      testID={testID}
+      data={items}
+      keyExtractor={(item) => item.id}
       contentInsetAdjustmentBehavior="automatic"
       style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{
@@ -91,62 +292,37 @@ export function WorkScreenView({
       ListHeaderComponent={
         <View style={{ gap: tokens.space.md, paddingBottom: tokens.space.sm }}>
           <View style={{ gap: tokens.space.xs }}>
-            <Text
-              selectable
-              style={{ color: colors.label, fontSize: tokens.type.display, fontWeight: "800" }}
-            >
-              My work
+            <Text selectable style={{ color: colors.label, fontSize: tokens.type.display, fontWeight: "800" }}>
+              {title}
             </Text>
-            <Text
-              selectable
-              style={{ color: colors.secondaryLabel, fontSize: tokens.type.body, lineHeight: 22 }}
-            >
-              Tasks returned by your authenticated Supabase access.
+            <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.body, lineHeight: 22 }}>
+              {description}
             </Text>
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: tokens.space.sm }}
-          >
-            {TASK_FILTERS.map((candidate) => {
-              const selected = candidate === filter;
-              return (
-                <Pressable
-                  key={candidate}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Filter tasks by ${TASK_FILTER_LABELS[candidate]}`}
-                  accessibilityState={{ selected }}
-                  onPress={() => onFilterChange(candidate)}
-                  style={({ pressed }) => ({
-                    minHeight: tokens.touchTarget,
-                    justifyContent: "center",
-                    paddingHorizontal: tokens.space.md,
-                    borderRadius: tokens.radius.pill,
-                    borderWidth: 1,
-                    borderColor: selected ? colors.primary : colors.separator,
-                    backgroundColor: selected ? colors.primary : colors.surface,
-                    opacity: pressed ? 0.78 : 1
-                  })}
-                >
-                  <Text
-                    style={{
-                      color: selected ? colors.onPrimary : colors.label,
-                      fontSize: tokens.type.caption,
-                      fontWeight: "700"
-                    }}
-                  >
-                    {TASK_FILTER_LABELS[candidate]}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+          <WorkScopePicker scope={scope} onScopeChange={onScopeChange} />
+          {filters}
+          <DeadlineFilters
+            deadlineFilter={deadlineFilter}
+            onDeadlineFilterChange={onDeadlineFilterChange}
+          />
 
-          <StatusNotice tone="warning">
-            Evidence upload and review submission are disabled until task-scoped Storage policies are deployed. You can test local evidence selection from a subtask without sending the file.
+          <StatusNotice>
+            Due dates are calendar dates on this device. Timestamp deadlines use the device time zone;
+            “Due in 7 days” includes today and the next seven calendar days. Deadline views show loaded
+            authorized work only.
           </StatusNotice>
+
+          <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.caption }}>
+            Showing {items.length} loaded {pluralLabel}. This is not an organization total.
+          </Text>
+
+          {scope !== "subtasks" ? (
+            <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.caption }}>
+              The Waiting filter shows only server-persisted waiting-for-assignment work. Dependency
+              readiness is not inferred from a partial list.
+            </Text>
+          ) : null}
 
           {isPaused ? (
             <StatusNotice tone="warning">
@@ -154,35 +330,37 @@ export function WorkScreenView({
             </StatusNotice>
           ) : null}
 
-          {isError && tasks.length > 0 ? (
+          {isError && items.length > 0 ? (
             <StatusNotice tone="warning">
-              Refresh failed. The task list below may be out of date.
+              Refresh failed. The work list below may be out of date.
             </StatusNotice>
           ) : null}
         </View>
       }
-      renderItem={({ item }) => (
-        <TaskListItem task={item} onPress={() => onOpenTask(item.id)} />
-      )}
+      renderItem={({ item }) => renderItem(item)}
       ListEmptyComponent={
         <View style={{ flex: 1, minHeight: 240, alignItems: "center", justifyContent: "center", gap: tokens.space.md }}>
           {isLoading ? (
             <>
-              <ActivityIndicator accessibilityLabel="Loading tasks" color={colors.primary} />
+              <ActivityIndicator accessibilityLabel={`Loading ${pluralLabel}`} color={colors.primary} />
               <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.body }}>
-                Loading your tasks…
+                Loading your {pluralLabel}…
               </Text>
             </>
           ) : isError ? (
             <>
               <StatusNotice tone="danger">
-                We could not load your tasks. Check your connection or access and try again.
+                We could not load your {pluralLabel}. Check your connection or access and try again.
               </StatusNotice>
               <Button label="Try again" onPress={onRefresh} />
             </>
+          ) : hasNextPage ? (
+            <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.body, textAlign: "center" }}>
+              No matching {pluralLabel} are loaded yet. Load more to check later authorized pages.
+            </Text>
           ) : (
             <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.body }}>
-              No tasks match this filter.
+              No {pluralLabel} match these filters.
             </Text>
           )}
         </View>
@@ -191,7 +369,7 @@ export function WorkScreenView({
         hasNextPage ? (
           <View style={{ paddingTop: tokens.space.sm }}>
             <Button
-              label="Load more tasks"
+              label={`Load more ${pluralLabel}`}
               loading={isFetchingNextPage}
               onPress={onLoadMore}
             />
@@ -202,13 +380,148 @@ export function WorkScreenView({
   );
 }
 
-function TaskListItem({ task, onPress }: { task: Task; onPress(): void }) {
-  const dueDate = formatTaskDate(task.deadline ?? task.dueDate);
+function WorkScopePicker({
+  scope,
+  onScopeChange
+}: {
+  scope: WorkScope;
+  onScopeChange(scope: WorkScope): void;
+}) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: tokens.space.sm }}>
+      {WORK_SCOPES.map((candidate) => (
+        <SelectionChip
+          key={candidate}
+          label={WORK_SCOPE_LABELS[candidate]}
+          selected={candidate === scope}
+          accessibilityLabel={`Show ${WORK_SCOPE_LABELS[candidate]}`}
+          onPress={() => onScopeChange(candidate)}
+        />
+      ))}
+    </ScrollView>
+  );
+}
+
+function TaskFilters({
+  filter,
+  onFilterChange
+}: {
+  filter: TaskFilter;
+  onFilterChange(filter: TaskFilter): void;
+}) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: tokens.space.sm }}>
+      {TASK_FILTERS.map((candidate) => (
+        <SelectionChip
+          key={candidate}
+          label={TASK_FILTER_LABELS[candidate]}
+          selected={candidate === filter}
+          accessibilityLabel={`Filter tasks by ${TASK_FILTER_LABELS[candidate]}`}
+          onPress={() => onFilterChange(candidate)}
+        />
+      ))}
+    </ScrollView>
+  );
+}
+
+function SubtaskFilters({
+  filter,
+  onFilterChange
+}: {
+  filter: SubtaskFilter;
+  onFilterChange(filter: SubtaskFilter): void;
+}) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: tokens.space.sm }}>
+      {SUBTASK_FILTERS.map((candidate) => (
+        <SelectionChip
+          key={candidate}
+          label={SUBTASK_FILTER_LABELS[candidate]}
+          selected={candidate === filter}
+          accessibilityLabel={`Filter subtasks by ${SUBTASK_FILTER_LABELS[candidate]}`}
+          onPress={() => onFilterChange(candidate)}
+        />
+      ))}
+    </ScrollView>
+  );
+}
+
+function DeadlineFilters({
+  deadlineFilter,
+  onDeadlineFilterChange
+}: {
+  deadlineFilter: DeadlineFilter;
+  onDeadlineFilterChange(filter: DeadlineFilter): void;
+}) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: tokens.space.sm }}>
+      {DEADLINE_FILTERS.map((candidate) => (
+        <SelectionChip
+          key={candidate.value}
+          label={candidate.label}
+          selected={candidate.value === deadlineFilter}
+          accessibilityLabel={`Show ${candidate.label.toLowerCase()} work`}
+          onPress={() => onDeadlineFilterChange(candidate.value)}
+        />
+      ))}
+    </ScrollView>
+  );
+}
+
+function SelectionChip({
+  label,
+  selected,
+  accessibilityLabel,
+  onPress
+}: {
+  label: string;
+  selected: boolean;
+  accessibilityLabel: string;
+  onPress(): void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        minHeight: tokens.touchTarget,
+        justifyContent: "center",
+        paddingHorizontal: tokens.space.md,
+        borderRadius: tokens.radius.pill,
+        borderWidth: 1,
+        borderColor: selected ? colors.primary : colors.separator,
+        backgroundColor: selected ? colors.primary : colors.surface,
+        opacity: pressed ? 0.78 : 1
+      })}
+    >
+      <Text
+        style={{
+          color: selected ? colors.onPrimary : colors.label,
+          fontSize: tokens.type.caption,
+          fontWeight: "700"
+        }}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function SubtaskWorkListItem({
+  subtask,
+  onPress
+}: {
+  subtask: Subtask;
+  onPress(): void;
+}) {
+  const dueDate = formatTaskDate(subtask.dueDate);
 
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Open ${task.title}. ${taskStatusLabel(task.status)}. ${dueDate}.`}
+      accessibilityLabel={`Open ${subtask.title}. ${subtaskStatusLabel(subtask.status)}. ${dueDate}.`}
       onPress={onPress}
       style={({ pressed }) => ({
         minHeight: tokens.touchTarget,
@@ -228,23 +541,15 @@ function TaskListItem({ task, onPress }: { task: Task; onPress(): void }) {
           numberOfLines={2}
           style={{ flex: 1, color: colors.label, fontSize: tokens.type.body, fontWeight: "800" }}
         >
-          {task.title}
+          {subtask.title}
         </Text>
-        <Text
-          selectable
-          style={{ color: colors.primary, fontSize: tokens.type.caption, fontWeight: "700" }}
-        >
-          {task.percentComplete}%
+        <Text selectable style={{ color: colors.primary, fontSize: tokens.type.caption, fontWeight: "700" }}>
+          {subtask.percentComplete}%
         </Text>
       </View>
       <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.caption }}>
-        {taskStatusLabel(task.status)} · {dueDate}
+        {subtaskStatusLabel(subtask.status)} · {dueDate}
       </Text>
-      {task.projectTitle ? (
-        <Text selectable style={{ color: colors.secondaryLabel, fontSize: tokens.type.caption }}>
-          {task.projectTitle}
-        </Text>
-      ) : null}
     </Pressable>
   );
 }
@@ -268,26 +573,84 @@ export function WorkScreen() {
 
 function AuthorizedWorkScreen({ userId }: { userId: string }) {
   const router = useRouter();
-  const [filter, setFilter] = React.useState<TaskFilter>("active");
-  const query = useInfiniteQuery(myTasksInfiniteQueryOptions(userId, filter));
-  const tasks = React.useMemo(() => flattenTaskFeed(query.data?.pages), [query.data?.pages]);
+  const [scope, setScope] = React.useState<WorkScope>("tasks");
+  const [taskFilter, setTaskFilter] = React.useState<TaskFilter>("active");
+  const [subtaskFilter, setSubtaskFilter] = React.useState<SubtaskFilter>("active");
+  const [deadlineFilter, setDeadlineFilter] = React.useState<DeadlineFilter>("all");
+  const tasksQuery = useInfiniteQuery({
+    ...myTasksInfiniteQueryOptions(userId, taskFilter),
+    enabled: scope === "tasks"
+  });
+  const leadingQuery = useInfiniteQuery({
+    ...leadingTasksInfiniteQueryOptions(userId, taskFilter),
+    enabled: scope === "leading"
+  });
+  const subtasksQuery = useInfiniteQuery({
+    ...mySubtasksInfiniteQueryOptions(userId, subtaskFilter),
+    enabled: scope === "subtasks"
+  });
+  const now = new Date();
+  const tasks = filterTasksForDeadline(flattenTaskFeed(tasksQuery.data?.pages), deadlineFilter, now);
+  const leadingTasks = filterTasksForDeadline(
+    flattenTaskFeed(leadingQuery.data?.pages),
+    deadlineFilter,
+    now
+  );
+  const subtasks = filterSubtasksForDeadline(
+    flattenSubtaskFeed(subtasksQuery.data?.pages),
+    deadlineFilter,
+    now
+  );
 
+  const openTask = (taskId: string): void => {
+    router.push({ pathname: "/tasks/[task-id]", params: { "task-id": taskId } });
+  };
+  const openSubtask = (subtaskId: string): void => {
+    router.push({ pathname: "/subtasks/[subtask-id]", params: { "subtask-id": subtaskId } });
+  };
+
+  if (scope === "subtasks") {
+    return (
+      <SubtaskWorkScreenView
+        subtasks={subtasks}
+        filter={subtaskFilter}
+        deadlineFilter={deadlineFilter}
+        isLoading={subtasksQuery.isLoading}
+        isRefreshing={subtasksQuery.isRefetching}
+        isError={subtasksQuery.isError}
+        isPaused={subtasksQuery.fetchStatus === "paused"}
+        hasNextPage={Boolean(subtasksQuery.hasNextPage)}
+        isFetchingNextPage={subtasksQuery.isFetchingNextPage}
+        onFilterChange={setSubtaskFilter}
+        onDeadlineFilterChange={setDeadlineFilter}
+        onScopeChange={setScope}
+        onRefresh={() => void subtasksQuery.refetch()}
+        onLoadMore={() => void subtasksQuery.fetchNextPage()}
+        onOpenSubtask={openSubtask}
+      />
+    );
+  }
+
+  const isLeading = scope === "leading";
+  const query = isLeading ? leadingQuery : tasksQuery;
   return (
     <WorkScreenView
-      tasks={tasks}
-      filter={filter}
+      tasks={isLeading ? leadingTasks : tasks}
+      filter={taskFilter}
+      scope={scope}
+      deadlineFilter={deadlineFilter}
       isLoading={query.isLoading}
       isRefreshing={query.isRefetching}
       isError={query.isError}
       isPaused={query.fetchStatus === "paused"}
-      hasNextPage={query.hasNextPage}
+      hasNextPage={Boolean(query.hasNextPage)}
       isFetchingNextPage={query.isFetchingNextPage}
-      onFilterChange={setFilter}
+      onFilterChange={setTaskFilter}
+      onDeadlineFilterChange={setDeadlineFilter}
+      onScopeChange={setScope}
       onRefresh={() => void query.refetch()}
       onLoadMore={() => void query.fetchNextPage()}
-      onOpenTask={(taskId) =>
-        router.push({ pathname: "/tasks/[task-id]", params: { "task-id": taskId } })
-      }
+      onOpenTask={openTask}
     />
   );
 }

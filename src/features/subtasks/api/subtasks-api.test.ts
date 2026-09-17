@@ -1,4 +1,8 @@
-import { listSubtaskSubmissionAttachments } from "@/features/subtasks/api/subtasks-api";
+import {
+  listMySubtasks,
+  listSubtaskSubmissionAttachments,
+  subtaskStatusesForFilter
+} from "@/features/subtasks/api/subtasks-api";
 import { SupabaseUserError } from "@/lib/supabase/errors";
 
 const mockFrom = jest.fn();
@@ -13,12 +17,18 @@ function createQuery(result: unknown) {
   const query = {
     select: jest.fn(),
     eq: jest.fn(),
+    or: jest.fn(),
+    in: jest.fn(),
     order: jest.fn(),
+    range: jest.fn(),
     abortSignal: jest.fn()
   };
   query.select.mockReturnValue(query);
   query.eq.mockReturnValue(query);
+  query.or.mockReturnValue(query);
+  query.in.mockReturnValue(query);
   query.order.mockReturnValue(query);
+  query.range.mockReturnValue(query);
   query.abortSignal.mockReturnValue(query);
   Object.assign(query, {
     then: (resolve: (value: unknown) => unknown) => Promise.resolve(result).then(resolve)
@@ -51,5 +61,20 @@ describe("subtask evidence reads", () => {
     await expect(listSubtaskSubmissionAttachments(submissionId)).rejects.toEqual(
       new SupabaseUserError("forbidden", "You do not have access to complete this action.")
     );
+  });
+
+  it("discovers direct subtask assignees with server-side status filtering and stable ordering", async () => {
+    const query = createQuery({ data: [], error: null });
+    mockFrom.mockReturnValue(query);
+    const userId = "22222222-2222-4222-8222-222222222222";
+
+    await expect(listMySubtasks(userId, { page: 0, filter: "active" })).resolves.toEqual([]);
+
+    expect(query.or).toHaveBeenCalledWith(`assigned_to.eq.${userId},assigned_to_ids.cs.{${userId}}`);
+    expect(query.in).toHaveBeenCalledWith("status", ["todo", "in_progress"]);
+    expect(query.order).toHaveBeenNthCalledWith(1, "due_date", { ascending: true, nullsFirst: false });
+    expect(query.order).toHaveBeenNthCalledWith(2, "position", { ascending: true });
+    expect(query.order).toHaveBeenNthCalledWith(3, "id", { ascending: true });
+    expect(subtaskStatusesForFilter("history")).toEqual(["completed"]);
   });
 });

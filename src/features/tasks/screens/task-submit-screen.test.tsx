@@ -89,6 +89,7 @@ const task = {
   acceptanceCriteria: [],
   definitionOfDone: null,
   feedback: null,
+  linkedProjectId: null,
   projectId: null,
   projectTitle: null,
   tags: [],
