@@ -11,6 +11,7 @@ import { taskStatusLabel, type Task, type TaskSubmission } from "@/contracts/tas
 import { SubmissionHistory } from "@/features/reviews/components/submission-history";
 import { getCurrentTaskReviewSubmission } from "@/features/reviews/submission-selection";
 import { subtasksByTaskQueryOptions } from "@/features/subtasks/query-options";
+import { canPlanSubtasks } from "@/features/subtasks/subtask-planning";
 import {
   taskDetailQueryOptions,
   taskSubmissionsQueryOptions
@@ -21,6 +22,7 @@ import { useAuth } from "@/features/auth/auth-context";
 import { formatTaskDate } from "@/features/tasks/presentation";
 import { isTaskLead } from "@/features/tasks/selectors";
 import { isPhase1CapabilityEnabled } from "@/lib/phase-1/capabilities";
+import { isPhase2CapabilityEnabled } from "@/lib/phase-2/capabilities";
 import { SupabaseUserError } from "@/lib/supabase/errors";
 import { subscribeToPhase1TaskWorkflow } from "@/lib/supabase/realtime";
 import { invalidateTaskWorkflow } from "@/features/workflow/cache-invalidation";
@@ -40,6 +42,7 @@ interface TaskDetailViewProps {
   canReviewTask?: boolean;
   canOpenDiscussion?: boolean;
   canOpenProject?: boolean;
+  canPlanSubtasks?: boolean;
   startingTask?: boolean;
   startError?: string | null;
   onOpenSubtask(subtaskId: string): void;
@@ -50,6 +53,7 @@ interface TaskDetailViewProps {
   onReviewTask?(): void;
   onOpenDiscussion?(): void;
   onOpenProject?(): void;
+  onPlanSubtasks?(): void;
 }
 
 export function TaskDetailView({
@@ -65,6 +69,7 @@ export function TaskDetailView({
   canReviewTask = false,
   canOpenDiscussion = false,
   canOpenProject = false,
+  canPlanSubtasks = false,
   startingTask = false,
   startError = null,
   onOpenSubtask,
@@ -74,7 +79,8 @@ export function TaskDetailView({
   onSubmitTask,
   onReviewTask,
   onOpenDiscussion,
-  onOpenProject
+  onOpenProject,
+  onPlanSubtasks
 }: TaskDetailViewProps) {
   useColorScheme();
 
@@ -116,6 +122,7 @@ export function TaskDetailView({
           {canSubmitTask && onSubmitTask ? <Button label="Submit task for review" onPress={onSubmitTask} /> : null}
           {canReviewTask && onReviewTask ? <Button label="Review task submission" onPress={onReviewTask} /> : null}
           {canOpenDiscussion && onOpenDiscussion ? <Button label="Task discussion" variant="secondary" onPress={onOpenDiscussion} /> : null}
+          {canPlanSubtasks && onPlanSubtasks ? <Button label="Plan subtasks" variant="secondary" onPress={onPlanSubtasks} /> : null}
           {startError ? <StatusNotice tone="danger">{startError}</StatusNotice> : null}
 
           <DetailSection title="Schedule">
@@ -368,6 +375,12 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
       ? "We could not start this task. Refresh to confirm its current status."
       : null;
   const linkedProjectId = taskQuery.data.linkedProjectId;
+  const subtaskPlanningEnabled =
+    isPhase2CapabilityEnabled("subtaskCreate") ||
+    isPhase2CapabilityEnabled("subtaskAssign") ||
+    isPhase2CapabilityEnabled("subtaskDeadline") ||
+    isPhase2CapabilityEnabled("subtaskReorder") ||
+    isPhase2CapabilityEnabled("subtaskExecutionRules");
 
   return (
     <TaskDetailView
@@ -383,6 +396,11 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
       canReviewTask={canReviewTask}
       canOpenDiscussion={isPhase1CapabilityEnabled("taskComments")}
       canOpenProject={can("navigation.projects") && linkedProjectId !== null}
+      canPlanSubtasks={
+        subtaskPlanningEnabled &&
+        isTaskLead(taskQuery.data, state.profile.id) &&
+        canPlanSubtasks(taskQuery.data)
+      }
       startingTask={startTaskMutation.isPending}
       startError={startError}
       onRetrySubtasks={() => void subtasksQuery.refetch()}
@@ -402,6 +420,9 @@ export function TaskDetailScreen({ taskId }: { taskId: string }) {
               params: { "project-id": linkedProjectId }
             })
           : undefined
+      }
+      onPlanSubtasks={() =>
+        router.push({ pathname: "/tasks/[task-id]/plan", params: { "task-id": taskId } })
       }
       onOpenSubtask={(subtaskId) =>
         router.push({ pathname: "/subtasks/[subtask-id]", params: { "subtask-id": subtaskId } })

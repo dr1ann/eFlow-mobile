@@ -144,6 +144,13 @@ Reuse the existing project-create flow. Confirm `create_task_with_details`, `ass
 
 Broader project administration, full organization management, reports, manual proposal authoring, and finance are outside this bounded planning slice.
 
+### Implementation progress — September 17, 2026
+
+- [x] **P6.3 local guarded slice:** An effective Task Lead can open a task-owned planning route and, when each individual capability is explicitly enabled after a probe, create a manual subtask, choose only an already RLS-visible task participant, reassign untouched work, reschedule through the deadline RPC, reorder with the server-owned RPC, and switch between sequential/standalone execution. The client locks started/submitted/completed structure, rejects offline mutations, disables duplicate presses, and invalidates the related workflow queries after success.
+- [ ] **P6.1/P6.2:** Current source has no approved permission-scoped participant/reviewer DTO and no verified atomic create-and-delegate transaction. Mobile deliberately does not query the broad `profiles` directory or expose a Department Head task-create/assignment route. See [Phase 6 contract notes](docs/PHASE_6_CONTRACTS.md).
+- [ ] **P6.3 live acceptance:** The relevant functions/policies and parent-state/audit/notification behavior have not been proved in the agreed non-production deployment. Every Phase 6 capability remains off by default until its own allowed/denied result is recorded.
+- [ ] **P6.4:** Cannot be demonstrated until P6.1/P6.2 create one real, correctly related work plan and notifications are accepted.
+
 ### Tests and manual verification
 
 Add colocated form/component tests and mocked API payload tests for the new task/subtask management code. Cover valid creation, required fields, malformed IDs, deadlines, stale writes, duplicate presses, unavailable people, missing permissions, wrong organization, ordinary-member denial, inactive actors, Task Lead precedence, self-review collisions, partial failure, cache invalidation, and offline rejection. Verify allowed/denied atomic RPC behavior against the agreed backend.

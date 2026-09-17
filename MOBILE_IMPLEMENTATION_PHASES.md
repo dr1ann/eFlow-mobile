@@ -333,11 +333,12 @@ For the first web-assisted defense, implement **4 → 5 → 7 → 8** with work 
 
 ## Phase 6 — Mobile task planning and delegation
 
-- Status: planned; required for an entirely mobile creation-to-completion demo, optional for the first web-assisted rehearsal.
+- Status: P6.3 Task-Lead subtask-planning UI/adapters are implemented locally September 17, 2026 behind individual disabled capabilities. P6.1 Department Head task creation and P6.2 participant/reviewer assignment remain unavailable pending a verified permission-scoped people source and atomic plan contract; deployed and device acceptance remain open.
 - Goal: create and delegate operational work on mobile.
 - Scope: Head task creation, eligible participants/Task Lead/reviewer assignment, and effective-Task-Lead subtask creation/assignment/scheduling/execution rules through verified server contracts.
 - Exit: a newly created mobile work plan enters the Phase 4 flow with correct relationships, atomic effects, and allowed/denied management checks. Project creation alone does not satisfy this phase.
 - Plan: [Phase 6 details](PHASE_4_TO_9_IMPLEMENTATION_PLAN.md#phase-6--mobile-task-planning-and-delegation).
+- Contract notes: [Phase 6 planning/delegation](docs/PHASE_6_CONTRACTS.md).
 
 ## Phase 7 — Workflow correctness, synchronization, and recovery
 

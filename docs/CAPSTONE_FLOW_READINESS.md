@@ -26,7 +26,7 @@ For the fastest complete system demonstration, prepare the project, task, team, 
 | Reviews | Inbox and task/subtask approve/request-changes forms; self-review and stored-reviewer guards | Submission note/evidence display and opening, prior attempts, feedback history, reliable refresh and inbox pagination |
 | Notifications | Recipient-filtered Inbox, All/Unread filters, mark-one/mark-all feedback, canonical recipient re-fetch on open, guarded task/project destinations, notification Realtime | Verified cross-user event delivery; direct subtask/review destinations if adopted; native push remains separate |
 | Communication | Recipient announcements and task text discussion adapters/screens | Audience/participant and two-client acceptance |
-| Projects | Paged list/search/filter/detail; self-owned create form; readiness, complete, archive adapters | Project-to-task drill-down, members/rollups/activity, task creation/assignment, broader editing/management |
+| Projects and planning | Paged list/search/filter/detail; self-owned create form; readiness, complete, archive adapters; guarded effective-Task-Lead subtask planning | Department Head task creation/assignment, permission-scoped people/reviewer selection, deployed management probes, members/rollups/activity, and broader editing |
 | Advanced features | Development-only synthetic chat UI; shared AI job states/backoff and safe ID persistence | Live chat, mobile staffing recommendations, reports/briefs, push, server PDF processing, and mobile proposal import |
 
 Source anchors: [task screens](../src/features/tasks/screens), [subtask screens](../src/features/subtasks/screens), [review screens](../src/features/reviews/screens), [notification screen](../src/features/notifications/screens/notification-list-screen.tsx), [project screens](../src/features/projects/screens), [evidence storage adapter](../src/features/subtasks/evidence-storage.ts).
@@ -75,7 +75,7 @@ Connect project detail to its authorized linked tasks, and task detail back to t
 
 Add a bounded Department Head task form and assignment flow: title, description, project, due date, priority, acceptance criteria, Task Lead, contributors, and primary/backup reviewer. The upstream uses `create_task_with_details` and `assign_task_with_details`; validate their exact scope and side effects before adopting them.
 
-Add effective-Task-Lead subtask creation, assignment, schedule/order, and execution-rule management under the existing server policy. Contributors retain progress/evidence actions. Project creation alone does not provide this planning chain, and the app currently has no task-create or subtask-management route.
+The guarded effective-Task-Lead subtask-planning route now supports create, assignment, schedule/order, and execution-mode controls through individual disabled capabilities, using only already-visible task-team data. Contributors retain progress/evidence actions. It remains a local integration slice until the source policies/RPCs pass deployed allowed/denied probes; it does not provide a Department Head task-create or people-selection flow. See [Phase 6 contract notes](PHASE_6_CONTRACTS.md).
 
 For the first slice, prioritize creating/assigning a small work plan. Broader project editing, member/milestone administration, advanced dependencies, workload analysis, and reports can follow independently.
 
@@ -129,8 +129,8 @@ Budget/petty cash remains deferred beyond the capstone sequence with no assigned
 
 ## Suggested defense script
 
-1. A Department Head prepares one project and a simple non-financial task with a real Task Lead, contributors, and reviewer routing on web; use mobile creation only once the additional planning slice is implemented.
-2. The Task Lead starts the task and assigns two small subtasks through the available verified interface.
+1. A Department Head prepares one project and a simple non-financial task with a real Task Lead, contributors, and reviewer routing on web; use mobile creation only after the P6.1/P6.2 atomic contract and people-source probes are accepted.
+2. The Task Lead starts the task and assigns two small subtasks through the available verified interface; the guarded mobile planning route can be used only after its individual Phase 6 capability probes are accepted.
 3. An employee opens assigned work on mobile, records progress, selects real evidence, and submits subtask version 1.
 4. The Task Lead opens the evidence on mobile and requests a specific correction.
 5. The employee sees the feedback/history, uploads corrected evidence, and submits version 2. The Task Lead approves; all required subtasks become approved.

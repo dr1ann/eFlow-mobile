@@ -26,6 +26,7 @@ function subtaskRow(overrides: Record<string, unknown> = {}): unknown {
     reviewer_id: ids.reviewer,
     due_date: "2026-08-30",
     position: 1,
+    is_standalone: true,
     is_completed: false,
     latest_submission_id: ids.submission,
     source: "manual",
@@ -42,6 +43,7 @@ describe("subtask mappers", () => {
       taskId: ids.task,
       status: "changes_requested",
       percentComplete: 99,
+      isStandalone: true,
       isCompleted: false
     });
   });

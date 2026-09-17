@@ -4,9 +4,9 @@ describe("Phase 2 capability configuration", () => {
   it("uses an explicit allow-list and ignores malformed or unknown values", () => {
     expect([
       ...parsePhase2Capabilities(
-        " projectCreate, projectComplete, unknown, projectCreate, project archive "
+        " projectCreate, subtaskCreate, subtaskReorder, unknown, projectCreate, project archive "
       )
-    ]).toEqual(["projectCreate", "projectComplete"]);
+    ]).toEqual(["projectCreate", "subtaskCreate", "subtaskReorder"]);
   });
 
   it("fails closed for absent configuration", () => {

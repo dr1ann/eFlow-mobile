@@ -29,6 +29,8 @@ export interface Subtask {
   reviewerId: string | null;
   dueDate: string | null;
   position: number | null;
+  /** Whether this item bypasses the ordered-subtask prerequisite chain. */
+  isStandalone?: boolean;
   isCompleted: boolean;
   latestSubmissionId: string | null;
   source: string | null;

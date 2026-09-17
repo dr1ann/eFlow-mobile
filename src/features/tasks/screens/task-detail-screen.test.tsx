@@ -165,4 +165,23 @@ describe("TaskDetailView", () => {
     await fireEvent.press(view.getByLabelText("Open linked project"));
     expect(onOpenProject).toHaveBeenCalledTimes(1);
   });
+
+  it("shows subtask planning only when the effective Task Lead has a verified planning capability", async () => {
+    const onPlanSubtasks = jest.fn();
+    const view = await render(
+      <TaskDetailView
+        task={task}
+        subtasks={[]}
+        subtasksLoading={false}
+        subtasksError={false}
+        canPlanSubtasks
+        onPlanSubtasks={onPlanSubtasks}
+        onOpenSubtask={jest.fn()}
+        onRetrySubtasks={jest.fn()}
+      />
+    );
+
+    await fireEvent.press(view.getByLabelText("Plan subtasks"));
+    expect(onPlanSubtasks).toHaveBeenCalledTimes(1);
+  });
 });
